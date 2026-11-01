@@ -59,6 +59,8 @@ Open `/editor/`. The starter pack is already loaded:
 The simulator runs load tags; `tick.mcfunction` is scaffolded and linted, but
 there is no background game-tick loop.
 
+![Right-click context menu on a preview entity](docs/screenshots/context-menu.png)
+
 Everything is stored in `localStorage`. **File → Export** writes a standard
 datapack `.zip`; **File → Import** reads one back.
 
