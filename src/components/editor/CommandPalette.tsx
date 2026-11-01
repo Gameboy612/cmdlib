@@ -35,7 +35,7 @@ export function CommandPalette() {
       { id: "reset-layout", label: "Reset dock layout", group: "Layout", keywords: "panels windows", run: state.resetLayout },
       { id: "re-lint", label: "Re-run the linter", group: "Tools", keywords: "problems errors", run: () => state.refreshLint() },
       { id: "credits", label: "Open credits and licenses", group: "Tools", keywords: "legal attribution", run: () => window.open(asset("/credits/"), "_self") },
-      { id: "home", label: "Back to cmdlib.dev", group: "Tools", keywords: "landing home", run: () => window.open("/", "_self") },
+      { id: "home", label: "Back to cmdlib.dev", group: "Tools", keywords: "landing home", run: () => window.open(asset("/"), "_self") },
     ];
     for (const id of PANEL_ORDER) {
       base.push({

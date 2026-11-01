@@ -26,6 +26,22 @@ npm run build        # static export in ./out
 npm test             # engine + lint + autocomplete tests
 ```
 
+## Live site
+
+- **Site:** https://wankun.kapakki.com/cmdlib/
+- **GitHub Pages:** https://gameboy612.github.io/cmdlib/ (redirects to the account's Pages custom domain)
+- **Source:** https://github.com/Gameboy612/cmdlib
+
+The site is a static export deployed to the `gh-pages` branch by
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Because it is a
+GitHub project site, the workflow builds with
+`NEXT_PUBLIC_BASE_PATH=/cmdlib` and `NEXT_PUBLIC_SITE_URL=https://wankun.kapakki.com/cmdlib`.
+Local builds keep the root path.
+
+---
+
+## Editor
+
 Open `/editor/`. The starter pack is already loaded:
 
 1. **Run (F5)** reloads the pack and runs `#minecraft:load`.
