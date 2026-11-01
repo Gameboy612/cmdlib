@@ -243,7 +243,38 @@ function lintActivePack(
     workspace?.packs
       .filter((pack) => pack.id !== project.id)
       .map((pack) => pack.files) ?? [];
-  return lintProject(project, { objectiveSources });
+  try {
+    return lintProject(project, { objectiveSources });
+  } catch (error) {
+    const path =
+      project.activePath ||
+      Object.keys(project.files)[0] ||
+      "pack.mcmeta";
+    return {
+      diagnostics: [
+        {
+          id: `${path}:1:1:lint-failed`,
+          source: "cmdlib" as const,
+          path,
+          severity: "warning" as const,
+          code: "lint-failed",
+          message: `Linting could not finish for this project: ${(error as Error).message}. The files are still editable.`,
+          line: 1,
+          column: 1,
+          endLine: 1,
+          endColumn: 1,
+          from: 0,
+          to: 0,
+        },
+      ],
+      errors: 0,
+      warnings: 1,
+      infos: 0,
+      filesLinted: 0,
+      durationMs: 0,
+      versionId: project.versionId,
+    };
+  }
 }
 
 function readHistory(): string[] {

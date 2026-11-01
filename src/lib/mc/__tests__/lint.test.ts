@@ -135,3 +135,15 @@ describe("objective declaration pre-scan", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("large project lint budget", () => {
+  it("returns a truncation warning instead of crashing", () => {
+    const project = createProject("26.3");
+    for (let i = 0; i < 2_100; i++) {
+      project.files[`data/cmdlib/function/bulk_${i}.mcfunction`] = "say ok\n";
+    }
+    const report = lintProject(project);
+    expect(report.diagnostics.some((entry) => entry.code === "lint-truncated")).toBe(true);
+    expect(report.filesLinted).toBeLessThanOrEqual(2_000);
+  }, 15_000);
+});

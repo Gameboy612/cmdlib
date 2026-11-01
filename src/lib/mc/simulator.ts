@@ -247,6 +247,13 @@ export class Simulator implements Runtime {
     return makeContext(this.world, this, player, { quiet, lint: false });
   }
 
+  private isNonFatal(error: unknown): error is CommandError {
+    return (
+      error instanceof CommandError &&
+      (error.code === "unsupported" || error.code === "unsupported-command")
+    );
+  }
+
   /** Run one console line. Errors are logged, not thrown. */
   runCommand(line: string, options: { quiet?: boolean } = {}): RunOutcome {
     this.world.resetCommandBudget();
@@ -281,8 +288,20 @@ export class Simulator implements Runtime {
       for (let i = 0; i < lines.length; i++) {
         const prepared = this.prepareLine(lines[i], options.macros ?? null, "(console)", i + 1);
         if (prepared === null) continue;
-        const result = executeCommandLine(prepared, ctx);
-        last = result;
+        try {
+          const result = executeCommandLine(prepared, ctx);
+          last = result;
+        } catch (error) {
+          if (error instanceof ReturnSignal) throw error;
+          if (this.isNonFatal(error)) {
+            this.world.log(
+              "warning",
+              `Warning: ${error.message} (console line ${i + 1}); continuing`,
+            );
+            continue;
+          }
+          throw error;
+        }
       }
       this.world.touch();
       return { ...last, ok: true };
@@ -354,6 +373,16 @@ export class Simulator implements Runtime {
       } catch (error) {
         if (error instanceof ReturnSignal) {
           return { result: error.value, success: true };
+        }
+        if (this.isNonFatal(error)) {
+          // Unsupported commands are lint warnings, not runtime failures. Keep
+          // executing the rest of the function so a single unsupported command
+          // cannot stop a setup/tick chain.
+          this.world.log(
+            "warning",
+            `Warning: ${error.message} (function ${id}, line ${i + 1}); continuing`,
+          );
+          continue;
         }
         if (error instanceof CommandError) {
           error.message = `${error.message} (function ${id}, line ${i + 1})`;

@@ -24,6 +24,25 @@ export function downloadProject(project: Project): void {
   downloadBlob(new Blob([zip], { type: "application/zip" }), `${safeName}.zip`);
 }
 
+const MAX_ARCHIVE_FILES = 10_000;
+const MAX_ARCHIVE_BYTES = 64 * 1024 * 1024;
+
+function assertArchiveLimits(entries: Record<string, Uint8Array>): void {
+  const paths = Object.keys(entries);
+  if (paths.length > MAX_ARCHIVE_FILES) {
+    throw new Error(
+      `That zip contains ${paths.length.toLocaleString()} files; the limit is ${MAX_ARCHIVE_FILES.toLocaleString()}.`,
+    );
+  }
+  let total = 0;
+  for (const data of Object.values(entries)) total += data.byteLength;
+  if (total > MAX_ARCHIVE_BYTES) {
+    throw new Error(
+      `That zip expands to ${(total / 1024 / 1024).toFixed(1)} MB; the limit is ${MAX_ARCHIVE_BYTES / 1024 / 1024} MB.`,
+    );
+  }
+}
+
 export interface ImportedProject {
   name: string;
   files: Record<string, string>;
@@ -33,6 +52,7 @@ export interface ImportedProject {
 export async function readProjectZip(file: File): Promise<ImportedProject> {
   const buffer = new Uint8Array(await file.arrayBuffer());
   const unzipped = unzipSync(buffer);
+  assertArchiveLimits(unzipped);
   const files: Record<string, string> = {};
   for (const [path, data] of Object.entries(unzipped)) {
     if (path.endsWith("/")) continue;
@@ -66,6 +86,7 @@ export function readProjectArchiveBytes(
   archiveName: string,
 ): ImportedProjectArchive {
   const unzipped = unzipSync(buffer);
+  assertArchiveLimits(unzipped);
   const files: Record<string, string> = {};
   for (const [path, data] of Object.entries(unzipped)) {
     if (path.endsWith("/") || path.includes("__MACOSX")) continue;

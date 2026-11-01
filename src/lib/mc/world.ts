@@ -55,7 +55,7 @@ export interface TitleState {
   actionbarSetAt: number;
 }
 
-export type LogKind = "chat" | "actionbar" | "error" | "info" | "success" | "command" | "data" | "system";
+export type LogKind = "chat" | "actionbar" | "error" | "warning" | "info" | "success" | "command" | "data" | "system";
 
 export interface WorldLogEntry {
   id: number;

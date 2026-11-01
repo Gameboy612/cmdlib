@@ -110,8 +110,13 @@ datapack `.zip`; **File → Import** reads one back.
 
 `particle`, `playsound`, `loot`, `advancement`, `worldborder`, `bossbar` and the
 other commands outside the table above are **recognised by the linter** with
-their 26.3 metadata, but the runtime reports them as unsupported. They do not
-silently fail.
+their 26.3 metadata. The runtime logs a **warning** and continues with the next
+line of the function, so one unsupported command cannot stop a setup or tick
+chain.
+
+Very large projects use a bounded lint pass. If a project exceeds the lint
+budget, the editor reports a `lint-truncated` warning instead of freezing or
+crashing; files stay editable.
 
 Entities are not game entities in the AI sense. They are objects:
 

@@ -205,3 +205,24 @@ describe("scoreboard integer bounds", () => {
     expect(sim.world.getScore("Dev", "points") ?? 0).toBe(0);
   });
 });
+
+describe("unsupported command handling", () => {
+  it("continues a function after an unsupported command", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/continue.mcfunction"] = [
+      "playsound minecraft:block.note_block.bell master @s",
+      "scoreboard players add @s points 1",
+    ].join("\n");
+    const sim = new Simulator({ project });
+    sim.reset();
+    const outcome = sim.runCommand("function cmdlib:continue");
+    expect(outcome.ok).toBe(true);
+    expect(sim.world.getScore("Dev", "points")).toBe(1);
+    expect(
+      sim.world.logs.some(
+        (entry) =>
+          entry.kind === "warning" && entry.text.includes("Warning:") && entry.text.includes("/playsound"),
+      ),
+    ).toBe(true);
+  });
+});

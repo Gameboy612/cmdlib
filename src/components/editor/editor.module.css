@@ -735,6 +735,8 @@
 .logLine { display: flex; gap: 8px; padding: 1px 14px; white-space: pre-wrap; word-break: break-word; }
 .logMark { width: 10px; flex: none; color: var(--faint); }
 .logText { color: var(--text-dim); }
+.log_warning .logMark { color: var(--warn); }
+.log_warning .logText { color: #e8c98a; }
 .log_command { background: rgba(255, 122, 69, 0.055); }
 .log_command .logMark { color: var(--accent); }
 .log_command .logText { color: var(--accent-soft); }

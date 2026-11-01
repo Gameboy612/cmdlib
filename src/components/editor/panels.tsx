@@ -899,9 +899,11 @@ export function ConsolePanel() {
                     ? "×"
                     : entry.kind === "data"
                       ? "≡"
-                      : entry.kind === "system"
-                        ? "—"
-                        : "·"}
+                      : entry.kind === "warning"
+                        ? "!"
+                        : entry.kind === "system"
+                          ? "—"
+                          : "·"}
               </span>
               <span className={styles.logText}>{entry.text}</span>
             </div>

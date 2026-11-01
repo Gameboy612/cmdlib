@@ -88,12 +88,22 @@ const lintRuntime: Runtime = {
   },
 };
 
+const LINT_MAX_MS = 3_000;
+const LINT_MAX_FILES = 2_000;
+const LINT_MAX_COMMANDS = 200_000;
+const LINT_MAX_DIAGNOSTICS = 5_000;
+
 export function lintProject(project: Project, options: LintOptions = {}): LintReport {
   const started = performance.now();
   const version = options.version ?? getVersion(project.versionId);
   const parsed = parseDatapack(project.files, version);
   const diagnostics: Diagnostic[] = [];
+  let truncated = false;
   const report = (d: Omit<Diagnostic, "id" | "source">) => {
+    if (diagnostics.length >= LINT_MAX_DIAGNOSTICS) {
+      truncated = true;
+      return;
+    }
     diagnostics.push({
       ...d,
       id: `${d.path}:${d.line}:${d.column}:${d.code}`,
@@ -175,9 +185,18 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
   const player = world.player()!;
   const onlyPaths = options.onlyPaths ? new Set(options.onlyPaths) : null;
   let filesLinted = 0;
+  let commandsLinted = 0;
 
-  for (const fn of parsed.functions) {
+  outer: for (const fn of parsed.functions) {
     if (onlyPaths && !onlyPaths.has(fn.path)) continue;
+    if (filesLinted >= LINT_MAX_FILES) {
+      truncated = true;
+      break;
+    }
+    if (performance.now() - started > LINT_MAX_MS) {
+      truncated = true;
+      break;
+    }
     filesLinted++;
     const content = project.files[fn.path] ?? "";
     const lines = content.split(/\r?\n/);
@@ -199,9 +218,14 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
       });
     }
     for (let lineIndex = 0; lineIndex < lines.length && !stopped; lineIndex++) {
+      if (commandsLinted >= LINT_MAX_COMMANDS || performance.now() - started > LINT_MAX_MS) {
+        truncated = true;
+        break outer;
+      }
       const raw = lines[lineIndex];
       const trimmed = raw.trim();
       if (trimmed.length === 0 || trimmed.startsWith("#")) continue;
+      commandsLinted++;
       const leading = raw.length - raw.trimStart().length;
       const lineStart = lineStarts[lineIndex] + leading;
       const isMacro = trimmed.startsWith("$");
@@ -267,11 +291,30 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
     }
   }
 
-  lintFunctionTags(project, parsed, version, report);
-  lintVersionFeatures(project, version, onlyPaths, report);
-  lintUnusedFunctions(project, parsed, version, report);
-  lintObjectives(world, project, report);
-  lintEntitySelectors(project, report);
+  if (truncated) {
+    const firstPath =
+      parsed.functions[0]?.path ??
+      Object.keys(project.files)[0] ??
+      "pack.mcmeta";
+    report({
+      path: firstPath,
+      severity: "warning",
+      code: "lint-truncated",
+      message: `Project is too large to lint completely in one pass; stopped after ${filesLinted} function file(s) and ${commandsLinted} command(s). The rest of the project remains editable.`,
+      line: 1,
+      column: 1,
+      endLine: 1,
+      endColumn: 1,
+      from: 0,
+      to: 0,
+    });
+  } else {
+    lintFunctionTags(project, parsed, version, report);
+    lintVersionFeatures(project, version, onlyPaths, report);
+    lintUnusedFunctions(project, parsed, version, report);
+    lintObjectives(world, project, report);
+    lintEntitySelectors(project, report);
+  }
 
   const unique = dedupe(diagnostics).sort(
     (a, b) =>
@@ -1014,4 +1057,6 @@ export const LINT_CODES: Record<string, string> = {
   "unknown-predicate": "No predicate with that resource location exists in the pack.",
   "predicate-cycle": "A predicate references itself, directly or indirectly.",
   "unsupported-predicate-condition": "The predicate condition type is not simulated and evaluates to false.",
+  "lint-truncated": "The project is very large; linting stopped early to keep the editor responsive.",
+  "lint-failed": "The linter hit an unexpected error; the editor remains usable.",
 };
