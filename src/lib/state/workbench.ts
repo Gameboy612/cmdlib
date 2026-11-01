@@ -69,12 +69,15 @@ interface WorkbenchState {
   setPackName: (packId: string, name: string) => void;
   createProject: (name?: string) => string;
   importGithubProject: (url: string) => Promise<string>;
+  importProjectZip: (file: File) => Promise<string>;
   openProject: (id: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, name: string) => void;
   addPack: (name?: string) => string;
   selectPack: (id: string) => void;
   deletePack: (id: string) => void;
+  renamePackInProject: (projectId: string, packId: string, name: string) => void;
+  deletePackInProject: (projectId: string, packId: string) => void;
   setVersion: (versionId: string) => void;
   updateFile: (path: string, content: string) => void;
   createFile: (path: string, content?: string) => boolean;
@@ -230,6 +233,19 @@ function syncPackIntoProjects(
   );
 }
 
+function lintActivePack(
+  project: Project,
+  projects: WorkspaceProject[],
+  activeProjectId: string,
+): LintReport {
+  const workspace = projects.find((entry) => entry.id === activeProjectId);
+  const objectiveSources =
+    workspace?.packs
+      .filter((pack) => pack.id !== project.id)
+      .map((pack) => pack.files) ?? [];
+  return lintProject(project, { objectiveSources });
+}
+
 function readHistory(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -300,7 +316,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       sim,
       activePath: project.activePath,
       openTabs: project.activePath ? [project.activePath] : [],
-      lintReport: lintProject(project),
+      lintReport: lintActivePack(project, projects, workspace.id),
       hydrated: true,
       booting: false,
       layoutJson,
@@ -445,7 +461,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     if (!(path in project.files)) return;
     const openTabs = get().openTabs.includes(path)
       ? get().openTabs
-      : [...get().openTabs, path].slice(-8);
+      : [...get().openTabs, path].slice(-24);
     set({ activePath: path, openTabs });
     if (project.activePath !== path) {
       const next = { ...project, activePath: path };
@@ -466,7 +482,11 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   selectEntity: (uuid) => set({ selectedEntity: uuid }),
 
   refreshLint: () => {
-    const report = lintProject(get().project);
+    const report = lintActivePack(
+      get().project,
+      get().projects,
+      get().activeProjectId,
+    );
     set({ lintReport: report });
     return report;
   },
@@ -610,7 +630,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       project: pack,
       activePath: pack.activePath,
       openTabs: pack.activePath ? [pack.activePath] : [],
-      lintReport: lintProject(pack),
+      lintReport: lintActivePack(pack, projects, activeProjectId),
       selectedEntity: null,
     });
     persistWorkspaces(projects, activeProjectId);
@@ -641,6 +661,48 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     return pack.id;
   },
 
+  renamePackInProject: (projectId, packId, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const projects = get().projects.map((project) =>
+      project.id === projectId
+        ? {
+            ...project,
+            packs: project.packs.map((pack) =>
+              pack.id === packId ? { ...pack, name: trimmed } : pack,
+            ),
+            updatedAt: Date.now(),
+          }
+        : project,
+    );
+    set({
+      projects,
+      project:
+        projectId === get().activeProjectId && packId === get().project.id
+          ? { ...get().project, name: trimmed }
+          : get().project,
+    });
+    persistWorkspaces(projects, get().activeProjectId);
+  },
+
+  deletePackInProject: (projectId, packId) => {
+    const project = get().projects.find((entry) => entry.id === projectId);
+    if (!project || project.packs.length <= 1) return;
+    const packs = project.packs.filter((pack) => pack.id !== packId);
+    const activePackId =
+      project.activePackId === packId ? packs[0].id : project.activePackId;
+    const projects = get().projects.map((entry) =>
+      entry.id === projectId
+        ? { ...entry, packs, activePackId, updatedAt: Date.now() }
+        : entry,
+    );
+    set({ projects });
+    persistWorkspaces(projects, get().activeProjectId);
+    if (projectId === get().activeProjectId && project.activePackId === packId) {
+      get().selectPack(activePackId);
+    }
+  },
+
   deletePack: (id) => {
     const activeProjectId = get().activeProjectId;
     const workspace = get().projects.find((entry) => entry.id === activeProjectId);
@@ -660,6 +722,34 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     persistWorkspaces(projects, activeProjectId);
     if (workspace.activePackId === id) get().selectPack(activePackId);
     get().showToast("Pack removed", "info");
+  },
+
+  importProjectZip: async (file) => {
+    const imported = await readProjectZip(file);
+    const pack: Project = {
+      id: newId("pack"),
+      name: imported.name,
+      versionId: imported.versionId,
+      files: imported.files,
+      activePath:
+        Object.keys(imported.files).find((path) => path.endsWith(".mcfunction")) ??
+        Object.keys(imported.files)[0] ??
+        "",
+      updatedAt: Date.now(),
+    };
+    const workspace: WorkspaceProject = {
+      id: newId("project"),
+      name: imported.name,
+      packs: [pack],
+      activePackId: pack.id,
+      updatedAt: Date.now(),
+    };
+    const projects = [...get().projects, workspace];
+    set({ projects, activeProjectId: workspace.id });
+    get().selectPack(pack.id);
+    persistWorkspaces(projects, workspace.id);
+    get().showToast(`Imported project ${imported.name}`, "success");
+    return workspace.id;
   },
 
   importGithubProject: async (url) => {
@@ -715,7 +805,11 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   deleteProject: (id) => {
     const remaining = get().projects.filter((entry) => entry.id !== id);
     if (remaining.length === 0) {
-      get().createProject("My Project");
+      const workspace = createWorkspace("My Project", get().project.versionId);
+      set({ projects: [workspace], activeProjectId: workspace.id });
+      get().selectPack(workspace.activePackId);
+      persistWorkspaces([workspace], workspace.id);
+      get().showToast("Project removed", "info");
       return;
     }
     const nextProjects =

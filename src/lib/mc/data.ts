@@ -261,7 +261,59 @@ export const TEXT_COLORS = [
   "yellow", "white",
 ];
 
-export const GAMEMODES = ["survival", "creative", "adventure", "spectator"];
+export const GAMEMODES = [
+  "survival",
+  "creative",
+  "adventure",
+  "spectator",
+] as const;
+
+/** Curated status-effect registry used by `/effect` validation. */
+export const STATUS_EFFECTS = [
+  { name: "speed", description: "Increases movement speed." },
+  { name: "slowness", description: "Decreases movement speed." },
+  { name: "haste", description: "Increases mining speed." },
+  { name: "mining_fatigue", description: "Decreases mining speed." },
+  { name: "strength", description: "Increases attack damage." },
+  { name: "instant_health", description: "Heals instantly." },
+  { name: "instant_damage", description: "Deals damage instantly." },
+  { name: "jump_boost", description: "Increases jump height." },
+  { name: "nausea", description: "Warps the screen." },
+  { name: "regeneration", description: "Regenerates health over time." },
+  { name: "resistance", description: "Reduces incoming damage." },
+  { name: "fire_resistance", description: "Prevents fire damage." },
+  { name: "water_breathing", description: "Prevents drowning." },
+  { name: "invisibility", description: "Hides the entity." },
+  { name: "blindness", description: "Blinds the player." },
+  { name: "night_vision", description: "Brightens the view." },
+  { name: "hunger", description: "Increases hunger." },
+  { name: "weakness", description: "Reduces attack damage." },
+  { name: "poison", description: "Deals damage over time." },
+  { name: "wither", description: "Deals wither damage over time." },
+  { name: "health_boost", description: "Raises maximum health." },
+  { name: "absorption", description: "Adds absorption hearts." },
+  { name: "saturation", description: "Restores hunger and saturation." },
+  { name: "glowing", description: "Outlines the entity." },
+  { name: "levitation", description: "Makes the entity float." },
+  { name: "luck", description: "Improves loot luck." },
+  { name: "unluck", description: "Reduces loot luck." },
+  { name: "slow_falling", description: "Reduces fall speed." },
+  { name: "conduit_power", description: "Improves underwater activity." },
+  { name: "dolphins_grace", description: "Increases swim speed." },
+  { name: "bad_omen", description: "Triggers raids." },
+  { name: "hero_of_the_village", description: "Improves villager trades." },
+  { name: "darkness", description: "Darkens the screen." },
+  { name: "trial_omen", description: "Triggers trial spawners." },
+  { name: "raid_omen", description: "Triggers a raid." },
+  { name: "wind_charged", description: "Allows wind charging." },
+  { name: "weaving", description: "Spreads cobwebs on death." },
+  { name: "oozing", description: "Spawns slimes on death." },
+  { name: "infested", description: "Spawns silverfish on death." },
+];
+
+export const STATUS_EFFECT_IDS = new Set(
+  STATUS_EFFECTS.map((effect) => `minecraft:${effect.name}`),
+);
 
 /* ------------------------------------------------------------------ */
 /* Command metadata                                                    */
@@ -337,10 +389,11 @@ export const COMMANDS: Record<string, CommandSpec> = {
     summary: "Change the command context, test conditions, store a result, or run a command.",
     category: "server",
     supported: true,
-    usage: "/execute <as|at|positioned|align|in|rotated|facing|if|unless|store> … run <command>",
+    usage: "/execute <as|at|anchored|positioned|align|in|rotated|facing|if|unless|store> … run <command>",
     children: {
       as: { name: "as", summary: "Run once for each selected entity, as that entity.", category: "server", supported: true, args: [arg("targets", "targets")] },
       at: { name: "at", summary: "Run at an entity's position and rotation.", category: "server", supported: true, args: [arg("targets", "targets")] },
+      anchored: { name: "anchored", summary: "Use the eyes or feet as the command position.", category: "server", supported: true, args: [arg("anchor", "enum", "eyes or feet.")] },
       positioned: { name: "positioned", summary: "Set the command position.", category: "server", supported: true, args: [arg("pos", "coordinates")] },
       align: { name: "align", summary: "Round the command position to the block grid.", category: "server", supported: true, args: [arg("axes", "enum", "Any combination of x, y, z.", false)] },
       rotated: { name: "rotated", summary: "Set the command rotation.", category: "server", supported: true, args: [arg("rotation", "rotation")] },
@@ -368,7 +421,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
       get: { name: "get", summary: "Print a score.", category: "data", supported: true, args: subject("targets", "objective") },
       operation: { name: "operation", summary: "Combine two scores.", category: "data", supported: true, args: [arg("targets", "targets"), arg("objective", "objective"), arg("operation", "enum"), arg("source", "scoreHolder"), arg("sourceObjective", "objective")] },
       display: { name: "display", summary: "Set the name shown for a holder.", category: "data", supported: true, args: [arg("name", "scoreHolder")] },
-      enable: { name: "enable", summary: "Enable a trigger objective.", category: "data", supported: false, args: subject("targets", "objective") },
+      enable: { name: "enable", summary: "Enable a trigger objective.", category: "data", supported: true, usage: "/scoreboard players enable <targets> <objective>", args: subject("targets", "objective") },
     }),
   }, "data"),
 
@@ -462,10 +515,69 @@ export const COMMANDS: Record<string, CommandSpec> = {
   particle: { name: "particle", summary: "Spawn particles.", category: "world", supported: false },
   playsound: { name: "playsound", summary: "Play a sound.", category: "world", supported: false },
   bossbar: { name: "bossbar", summary: "Manage boss bars.", category: "server", supported: false },
-  give: { name: "give", summary: "Give items.", category: "player", supported: false },
-  clear: { name: "clear", summary: "Clear items.", category: "player", supported: false },
-  effect: { name: "effect", summary: "Apply or remove status effects.", category: "player", supported: false },
-  gamemode: { name: "gamemode", summary: "Change a player's game mode.", category: "player", supported: false },
+  give: {
+    name: "give",
+    summary: "Give items to players.",
+    category: "player",
+    supported: true,
+    usage: "/give <targets> <item> [<count>] [<nbt>]",
+    args: [
+      arg("targets", "targets", "Players to receive the item."),
+      arg("item", "word", "Item id, with or without the minecraft: namespace."),
+      arg("count", "integer", "Positive stack count. Defaults to 1.", true),
+      arg("nbt", "nbt", "Optional SNBT payload used to distinguish stacks.", true),
+    ],
+  },
+  clear: {
+    name: "clear",
+    summary: "Clear items from player inventories.",
+    category: "player",
+    supported: true,
+    usage: "/clear [<targets>] [<item>] [<maxCount>]",
+    args: [
+      arg("targets", "targets", "Players to clear. Defaults to @s.", true),
+      arg("item", "word", "Only clear this item id.", true),
+      arg("maxCount", "integer", "Maximum number of items to remove.", true),
+    ],
+  },
+  effect: {
+    name: "effect",
+    summary: "Apply or remove status effects.",
+    category: "player",
+    supported: true,
+    usage:
+      "/effect give <targets> <effect> [<seconds>] [<amplifier>] [<hideParticles>] | /effect clear <targets> [<effect>]",
+    args: [
+      arg("action", "enum", "give or clear."),
+      arg("targets", "targets", "Players affected by the effect."),
+      arg("effect", "word", "Status effect id, e.g. speed or minecraft:speed."),
+      arg("seconds", "integer", "Duration in seconds. Defaults to 30.", true),
+      arg("amplifier", "integer", "Effect amplifier. Defaults to 0.", true),
+      arg("hideParticles", "enum", "true or false. Defaults to false.", true),
+    ],
+  },
+  gamemode: {
+    name: "gamemode",
+    summary: "Change a player's game mode.",
+    category: "player",
+    supported: true,
+    usage: "/gamemode <survival|creative|adventure|spectator> [<targets>]",
+    args: [
+      arg("mode", "enum", "survival, creative, adventure or spectator."),
+      arg("targets", "targets", "Players to update. Defaults to @s.", true),
+    ],
+  },
+  trigger: {
+    name: "trigger",
+    summary: "Set a trigger objective for the executing player.",
+    category: "player",
+    supported: true,
+    usage: "/trigger <objective> [<value>]",
+    args: [
+      arg("objective", "objective", "A trigger-criterion objective enabled for this player."),
+      arg("value", "integer", "Score to set. Defaults to 0.", true),
+    ],
+  },
   xp: { name: "xp", summary: "Add or query experience.", category: "player", supported: false },
   advancement: { name: "advancement", summary: "Grant or revoke advancements.", category: "player", supported: false },
   attribute: { name: "attribute", summary: "Read or set attributes.", category: "player", supported: false },

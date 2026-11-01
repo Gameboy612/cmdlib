@@ -640,48 +640,80 @@ export function ExplorerPanel() {
 export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
   const project = useWorkbench((state) => state.project);
   const activePath = useWorkbench((state) => state.activePath);
+  const openTabs = useWorkbench((state) => state.openTabs);
+  const openFile = useWorkbench((state) => state.openFile);
+  const closeTab = useWorkbench((state) => state.closeTab);
   const updateFile = useWorkbench((state) => state.updateFile);
   const runActive = useWorkbench((state) => state.runActive);
   const showToast = useWorkbench((state) => state.showToast);
   const content = project.files[activePath];
+  const tabs = openTabs.filter((path) => path in project.files);
 
   useEffect(() => {
-    panelApi?.setTitle(activePath ? displayNameForFile(activePath) : "Editor");
-  }, [activePath, panelApi]);
-
-  if (!activePath || content === undefined) {
-    return (
-      <div className={styles.panel}>
-        <EmptyState
-          title="Nothing open"
-          body="Pick a file in the Explorer, or create one from the File menu."
-        />
-      </div>
-    );
-  }
+    panelApi?.setTitle("Code");
+  }, [panelApi]);
 
   const runnable = activePath.endsWith(".mcfunction");
   return (
     <div className={`${styles.panel} ${styles.editorPanel}`}>
-      <div className={styles.editorHost}>
-        <CodeEditor
-          key={activePath}
-          path={activePath}
-          value={content}
-          onChange={(next) => updateFile(activePath, next)}
-          onRun={runActive}
-          onSave={() => showToast("Saved to this browser", "success")}
+      {tabs.length > 0 && (
+        <div className={styles.editorTabs} role="tablist" aria-label="Open files">
+          {tabs.map((path) => (
+            <div
+              key={path}
+              className={`${styles.editorTab} ${path === activePath ? styles.editorTabActive : ""}`}
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={path === activePath}
+                className={styles.editorTabMain}
+                title={path}
+                onClick={() => openFile(path)}
+              >
+                {displayNameForFile(path)}
+              </button>
+              <button
+                type="button"
+                className={styles.editorTabClose}
+                aria-label={`Close ${path}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  closeTab(path);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {!activePath || content === undefined ? (
+        <EmptyState
+          title="Nothing open"
+          body="Pick a file in the Explorer, or create one from the File menu."
         />
-        <button
-          type="button"
-          className={styles.editorRun}
-          onClick={runActive}
-          disabled={!runnable}
-          title={runnable ? "Run active function" : "Only functions can run"}
-        >
-          <span aria-hidden>▶</span> Run file
-        </button>
-      </div>
+      ) : (
+        <div className={styles.editorHost}>
+          <CodeEditor
+            key={activePath}
+            path={activePath}
+            value={content}
+            onChange={(next) => updateFile(activePath, next)}
+            onRun={runActive}
+            onSave={() => showToast("Saved to this browser", "success")}
+          />
+          <button
+            type="button"
+            className={styles.editorRun}
+            onClick={runActive}
+            disabled={!runnable}
+            title={runnable ? "Run active function" : "Only functions can run"}
+          >
+            <span aria-hidden>▶</span> Run file
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1076,6 +1108,13 @@ export function EntitiesPanel() {
     [world, revision],
   );
   const entity = selected ? world.entityByUuid(selected) : undefined;
+  const player = world.player();
+  const gameMode = player ? world.playerGameMode(player) : "survival";
+  const inventory = player ? world.playerInventory(player) : [];
+  const effects = player ? world.effectsOf(player) : [];
+  const triggers = player
+    ? [...(world.playerState(player)?.enabledTriggers ?? [])]
+    : [];
 
   return (
     <div className={`${styles.panel} ${styles.entitiesPanel}`}>
@@ -1087,6 +1126,46 @@ export function EntitiesPanel() {
           </button>
         )}
       </div>
+      {player && (
+        <div className={styles.playerRuntime}>
+          <div className={styles.playerRuntimeLine}>
+            <span className={styles.playerRuntimeLabel}>player</span>
+            <b>{entityCustomName(player)}</b>
+            <span className={styles.playerMode}>{gameMode}</span>
+            <span className={styles.playerRuntimeCount}>
+              {inventory.length} stack{inventory.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className={styles.playerRuntimeLine}>
+            <span className={styles.playerRuntimeLabel}>inventory</span>
+            {inventory.length === 0 && <span className={styles.playerRuntimeMuted}>empty</span>}
+            {inventory.slice(0, 8).map((item) => (
+              <span key={`${item.id}-${item.count}`} className={styles.playerChip}>
+                {item.id.replace("minecraft:", "")} ×{item.count}
+              </span>
+            ))}
+            {inventory.length > 8 && (
+              <span className={styles.playerRuntimeMuted}>+{inventory.length - 8} more</span>
+            )}
+          </div>
+          {(effects.length > 0 || triggers.length > 0) && (
+            <div className={styles.playerRuntimeLine}>
+              <span className={styles.playerRuntimeLabel}>state</span>
+              {effects.map((effect) => (
+                <span key={effect.id} className={styles.playerChip}>
+                  {effect.id.replace("minecraft:", "")} {effect.amplifier + 1} ·{" "}
+                  {Math.ceil(effect.durationTicks / 20)}s
+                </span>
+              ))}
+              {triggers.map((objective) => (
+                <span key={objective} className={styles.playerChip}>
+                  trigger:{objective}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div className={styles.entitiesBody}>
         <div className={styles.entityList}>
           {entities.map((entry) => {

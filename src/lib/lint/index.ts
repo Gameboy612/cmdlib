@@ -64,6 +64,12 @@ export interface LintOptions {
   version?: VersionProfile;
   /** Only execute these paths; project-wide scans still run. */
   onlyPaths?: string[];
+  /**
+   * Additional file maps whose `scoreboard objectives add` declarations should
+   * seed the lint world. Used for sibling packs in the same project: Minecraft
+   * loads all packs together, so an objective may be declared in another pack.
+   */
+  objectiveSources?: Record<string, string>[];
 }
 
 const lintRuntime: Runtime = {
@@ -119,14 +125,17 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
   lintRuntime.world = world;
 
   const declaredObjectives = new Map<string, { criterion: string; displayName?: string }>();
-  for (const [path, content] of Object.entries(project.files)) {
-    const regex = /scoreboard\s+objectives\s+add\s+([A-Za-z0-9_.+-]+)\s+(\S+)(?:\s+(.+))?/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content))) {
-      declaredObjectives.set(match[1], {
-        criterion: match[2],
-        displayName: match[3]?.trim(),
-      });
+  const declarationSources = [project.files, ...(options.objectiveSources ?? [])];
+  for (const source of declarationSources) {
+    for (const content of Object.values(source)) {
+      const regex = /scoreboard[ \t]+objectives[ \t]+add[ \t]+(\S+)[ \t]+(\S+)(?:[ \t]+([^\r\n]+))?/g;
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(content))) {
+        declaredObjectives.set(match[1], {
+          criterion: match[2],
+          displayName: match[3]?.trim(),
+        });
+      }
     }
   }
   for (const [name, info] of declaredObjectives) {

@@ -26,6 +26,8 @@ export interface CommandContext {
   source: EntityData | null;
   pos: Vec3;
   rotation: Vec2;
+  /** Position anchor set by `execute anchored`; affects later position clauses. */
+  anchor: "feet" | "eyes";
   dimension: string;
   /** Inside a function: suppress routine feedback, like vanilla does. */
   quiet: boolean;
@@ -64,6 +66,7 @@ export function makeContext(
     source,
     pos,
     rotation,
+    anchor: "feet",
     dimension: "minecraft:overworld",
     quiet: options.quiet ?? false,
     lint: options.lint ?? false,

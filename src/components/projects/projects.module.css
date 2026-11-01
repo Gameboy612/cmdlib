@@ -37,6 +37,17 @@
   letter-spacing: 0.02em;
 }
 .primary:hover { background: var(--accent-strong); }
+.secondaryButton {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #2a323a;
+  border-radius: 5px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 8.5px;
+}
+.secondaryButton:hover:not(:disabled) { color: var(--text); border-color: #3b454f; }
+.secondaryButton:disabled { opacity: 0.5; cursor: default; }
 .primary:disabled { opacity: 0.5; cursor: default; }
 .main { max-width: 1120px; margin: 0 auto; padding: 62px 28px 90px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin-bottom: 40px; }
@@ -86,6 +97,16 @@
 }
 .importForm input:focus { border-color: rgba(255, 122, 69, 0.5); }
 .importCard .note { grid-column: 1 / -1; padding-top: 12px; border-top: 1px solid #1b2229; font-size: 8px; color: var(--faint); }
+.projectError {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 107, 94, 0.3);
+  border-radius: 5px;
+  background: rgba(255, 107, 94, 0.06);
+  color: var(--danger);
+  font-family: var(--mono);
+  font-size: 9px;
+}
 .error { grid-column: 1 / -1; margin: 0; color: var(--danger); font-family: var(--mono); font-size: 9px; }
 .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .card {

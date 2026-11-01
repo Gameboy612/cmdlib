@@ -183,23 +183,30 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
       value = cursor.readSnbt().tag;
     } else if (valueKind === "from") {
       const fromSource = readSource(cursor, ctx, false);
-      const fromPathStart = cursor.mark();
-      const fromPathText = cursor.readWord();
-      const fromPath = parsePathSafe(cursor, fromPathText, fromPathStart);
-      const matches = resolvePath(fromSource.root, fromPath);
-      if (matches.length !== 1) {
-        if (!ctx.lint) {
-          throw new CommandError(
-            matches.length === 0
-              ? `No tag was found at path '${fromPathText}'`
-              : `The source path matched ${matches.length} tags; it must match exactly one`,
-            fromPathStart,
-            "path-count",
-          );
-        }
-        value = Tag.compound();
+      // The source path is optional in vanilla: with no path the entire
+      // source payload is copied. This is what makes
+      // `/data modify storage su:temp Entity set from entity @s` work.
+      if (cursor.done()) {
+        value = clone(fromSource.root);
       } else {
-        value = clone(matches[0].value);
+        const fromPathStart = cursor.mark();
+        const fromPathText = cursor.readWord();
+        const fromPath = parsePathSafe(cursor, fromPathText, fromPathStart);
+        const matches = resolvePath(fromSource.root, fromPath);
+        if (matches.length !== 1) {
+          if (!ctx.lint) {
+            throw new CommandError(
+              matches.length === 0
+                ? `No tag was found at path '${fromPathText}'`
+                : `The source path matched ${matches.length} tags; it must match exactly one`,
+              fromPathStart,
+              "path-count",
+            );
+          }
+          value = Tag.compound();
+        } else {
+          value = clone(matches[0].value);
+        }
       }
     } else if (valueKind === "string") {
       const fromSource = readSource(cursor, ctx, false);

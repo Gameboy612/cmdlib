@@ -30,6 +30,9 @@ interface StoreSpec {
   pos?: { x: number; y: number; z: number };
 }
 
+/** Player eye height above the feet, matching Minecraft's standing eye level. */
+export const EYE_HEIGHT = 1.62;
+
 export const executeHandler: Handler = (cursor, ctx) => runChain(cursor, ctx);
 
 function runChain(cursor: Cursor, ctx: CommandContext): CommandResult {
@@ -72,6 +75,24 @@ function runChain(cursor: Cursor, ctx: CommandContext): CommandResult {
       cursor.pos = cursor.end;
       return { result, success };
     }
+    case "anchored": {
+      const anchorStart = cursor.mark();
+      const anchor = cursor.readWord();
+      if (anchor !== "eyes" && anchor !== "feet") {
+        cursor.error(
+          `Expected 'eyes' or 'feet', got '${anchor}'`,
+          anchorStart,
+          "execute-anchor",
+        );
+      }
+      ctx.anchor = anchor;
+      if (ctx.source) {
+        const feet = entityPos(ctx.source);
+        ctx.pos =
+          anchor === "eyes" ? { ...feet, y: feet.y + EYE_HEIGHT } : feet;
+      }
+      return runChain(cursor, ctx);
+    }
     case "at": {
       const raw = cursor.readTargetsRaw().raw;
       const entities = resolveEntityTargets(ctx.world, raw, {
@@ -80,7 +101,11 @@ function runChain(cursor: Cursor, ctx: CommandContext): CommandResult {
         lenient: true,
       });
       for (const entity of entities.slice(0, 1)) {
-        ctx.pos = entityPos(entity);
+        const feet = entityPos(entity);
+        ctx.pos =
+          ctx.anchor === "eyes"
+            ? { ...feet, y: feet.y + EYE_HEIGHT }
+            : feet;
         ctx.rotation = entityRotation(entity);
       }
       return runChain(cursor, ctx);
@@ -196,7 +221,7 @@ function runChain(cursor: Cursor, ctx: CommandContext): CommandResult {
     }
     default:
       cursor.error(
-        `Unknown execute subcommand '${sub}'. Expected as, at, positioned, align, rotated, facing, in, if, unless, store or run.`,
+        `Unknown execute subcommand '${sub}'. Expected as, at, anchored, positioned, align, rotated, facing, in, if, unless, store or run.`,
         subStart,
         "execute-subcommand",
       );

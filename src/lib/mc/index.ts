@@ -4,6 +4,7 @@ export * from "./nbtPath";
 export * from "./text";
 export * from "./data";
 export * from "./entities";
+export * from "./player";
 export * from "./selectors";
 export * from "./world";
 export * from "./version";

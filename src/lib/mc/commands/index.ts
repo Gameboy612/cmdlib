@@ -5,6 +5,13 @@ import { scoreboardHandler } from "./scoreboard";
 import { titleHandler } from "./title";
 import { scheduleHandler } from "./schedule";
 import {
+  clearHandler,
+  effectHandler,
+  gamemodeHandler,
+  giveHandler,
+  triggerHandler,
+} from "./player";
+import {
   killHandler,
   meHandler,
   reloadHandler,
@@ -39,7 +46,13 @@ export const HANDLERS: Record<string, CommandHandler> = {
   setblock: setblockHandler,
   reload: reloadHandler,
   schedule: scheduleHandler,
+  gamemode: gamemodeHandler,
+  give: giveHandler,
+  clear: clearHandler,
+  effect: effectHandler,
+  trigger: triggerHandler,
 };
 
 export { executeHandler, scoreboardHandler, titleHandler, functionHandler, dataHandler };
+export { gamemodeHandler, giveHandler, clearHandler, effectHandler, triggerHandler };
 export { scheduleHandler, parseScheduleTime, TICKS_PER_SECOND, TICKS_PER_DAY, SCHEDULE_USAGE } from "./schedule";

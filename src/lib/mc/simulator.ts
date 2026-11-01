@@ -9,6 +9,7 @@ import { parseDatapack, type Project } from "./datapack";
 import { getVersion, type VersionProfile } from "./version";
 import { macroValueToString } from "./commands/function";
 import { HANDLERS } from "./commands";
+import type { GameMode, InventoryItem, StatusEffect } from "./player";
 
 export interface RunOutcome extends CommandResult {
   ok: boolean;
@@ -155,6 +156,23 @@ export class Simulator implements Runtime {
     return this.world.scheduled;
   }
 
+  /* ------------------------- player state views ----------------------- */
+
+  /** Game mode of the default player. `survival` until `/gamemode` runs. */
+  get playerGameMode(): GameMode {
+    return this.world.playerGameMode();
+  }
+
+  /** Read-only inventory of the default player. */
+  get playerInventory(): readonly InventoryItem[] {
+    return this.world.playerInventory();
+  }
+
+  /** Read-only active effects on the default player. */
+  get playerEffects(): readonly StatusEffect[] {
+    return this.world.effectsOf();
+  }
+
   /** Remove queued schedules for one function, or all of them. */
   clearSchedules(functionId?: string): number {
     const removed = this.world.clearSchedules(functionId);
@@ -181,6 +199,10 @@ export class Simulator implements Runtime {
     const errors: string[] = [];
     let tickTagRan = false;
     this.world.resetCommandBudget();
+    // Effects tick before the tick function so commands observe the state the
+    // player will have during this game tick. Expiry is silent but the final
+    // `touch()` below still notifies UI subscribers.
+    this.world.tickStatusEffects();
 
     if (this.world.getFunctionTag("minecraft:tick")) {
       tickTagRan = true;

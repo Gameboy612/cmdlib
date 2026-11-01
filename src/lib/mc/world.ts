@@ -19,6 +19,15 @@ import {
 import { parseSnbt } from "./snbt";
 import { plainText } from "./text";
 import { getPathValues, parseNbtPath } from "./nbtPath";
+import {
+  cloneStatusEffect,
+  createPlayerState,
+  GameMode,
+  InventoryItem,
+  itemNbtKey,
+  PlayerState,
+  StatusEffect,
+} from "./player";
 
 export interface Objective {
   name: string;
@@ -111,6 +120,14 @@ export class World {
   readonly version: VersionProfile;
   tick = 0;
   entities: EntityData[] = [];
+  /**
+   * Simulated player state, keyed by score-holder name (username for players).
+   * The map is public for inspection; commands mutate through the helpers in
+   * the "player runtime" section below.
+   */
+  playerStates = new Map<string, PlayerState>();
+  /** Active status effects, keyed by the same holder key. */
+  statusEffects = new Map<string, StatusEffect[]>();
   storages = new Map<string, CompoundTag>();
   objectives = new Map<string, Objective>();
   scores = new Map<string, Map<string, number>>();
@@ -334,6 +351,198 @@ export class World {
 
   entityByUuid(uuid: string): EntityData | undefined {
     return this.entities.find((e) => e.uuid === uuid);
+  }
+
+  /* --------------------------- player runtime ------------------------- */
+
+  /**
+   * Resolve a target to its runtime state key. Players use their username so
+   * state survives an entity object being replaced (teleport, re-summon, …);
+   * other entities fall back to their UUID.
+   */
+  runtimeKey(target?: EntityData | string | null): string {
+    if (typeof target === "string") return target;
+    if (target) return entityHolderName(target);
+    const player = this.player();
+    return player ? entityHolderName(player) : "Dev";
+  }
+
+  /** Read-only player state, or undefined when the holder has never acted. */
+  playerState(target?: EntityData | string | null): PlayerState | undefined {
+    return this.playerStates.get(this.runtimeKey(target));
+  }
+
+  playerGameMode(target?: EntityData | string | null): GameMode {
+    return this.playerState(target)?.gameMode ?? "survival";
+  }
+
+  /** Read-only inventory view for the UI. Do not mutate the returned array. */
+  playerInventory(target?: EntityData | string | null): readonly InventoryItem[] {
+    return this.playerState(target)?.inventory ?? [];
+  }
+
+  /** Read-only status effects for a player or any entity holder. */
+  effectsOf(target?: EntityData | string | null): readonly StatusEffect[] {
+    return this.statusEffects.get(this.runtimeKey(target)) ?? [];
+  }
+
+  isTriggerEnabled(
+    target: EntityData | string | null,
+    objective: string,
+  ): boolean {
+    return this.playerState(target)?.enabledTriggers.has(objective) ?? false;
+  }
+
+  private ensurePlayerState(target?: EntityData | string | null): PlayerState {
+    const key = this.runtimeKey(target);
+    let state = this.playerStates.get(key);
+    if (!state) {
+      state = createPlayerState();
+      this.playerStates.set(key, state);
+    }
+    return state;
+  }
+
+  setPlayerGameMode(
+    target: EntityData | string | null,
+    mode: GameMode,
+  ): void {
+    this.ensurePlayerState(target).gameMode = mode;
+  }
+
+  /**
+   * Add items to a holder's inventory, merging stacks with the same id and NBT
+   * payload. Returns the affected stack.
+   */
+  givePlayerItem(
+    target: EntityData | string | null,
+    id: string,
+    count: number,
+    nbt?: CompoundTag,
+  ): InventoryItem {
+    const state = this.ensurePlayerState(target);
+    const key = itemNbtKey(nbt);
+    const existing = state.inventory.find(
+      (item) => item.id === id && itemNbtKey(item.nbt) === key,
+    );
+    if (existing) {
+      existing.count += count;
+      return existing;
+    }
+    const item: InventoryItem = {
+      id,
+      count,
+      ...(nbt ? { nbt: JSON.parse(JSON.stringify(nbt)) as CompoundTag } : {}),
+    };
+    state.inventory.push(item);
+    return item;
+  }
+
+  /**
+   * Remove matching items from a holder's inventory.
+   *
+   * With no `id`, the whole inventory is cleared. With `id` and no `maxCount`,
+   * every matching stack is removed. `maxCount` limits how many items are
+   * removed, stopping part-way through a stack. Returns the removed count.
+   */
+  clearPlayerItems(
+    target: EntityData | string | null,
+    id?: string,
+    nbt?: CompoundTag,
+    maxCount?: number,
+  ): number {
+    const state = this.playerState(target);
+    if (!state || state.inventory.length === 0) return 0;
+    if (id === undefined) {
+      const removed = state.inventory.reduce((sum, item) => sum + item.count, 0);
+      state.inventory.length = 0;
+      return removed;
+    }
+    const nbtKey = nbt === undefined ? undefined : itemNbtKey(nbt);
+    let budget = maxCount === undefined ? Infinity : Math.max(0, Math.trunc(maxCount));
+    let removed = 0;
+    const remaining: InventoryItem[] = [];
+    for (const item of state.inventory) {
+      const matches =
+        item.id === id &&
+        (nbtKey === undefined || itemNbtKey(item.nbt) === nbtKey);
+      if (!matches || budget <= 0) {
+        remaining.push(item);
+        continue;
+      }
+      const take = Math.min(item.count, budget);
+      removed += take;
+      budget -= take;
+      if (take < item.count) remaining.push({ ...item, count: item.count - take });
+    }
+    state.inventory.length = 0;
+    state.inventory.push(...remaining);
+    return removed;
+  }
+
+  /** Apply (or refresh) one effect on a holder, replacing the same effect id. */
+  applyStatusEffect(
+    target: EntityData | string | null,
+    effect: StatusEffect,
+  ): void {
+    const key = this.runtimeKey(target);
+    let list = this.statusEffects.get(key);
+    if (!list) {
+      list = [];
+      this.statusEffects.set(key, list);
+    }
+    const index = list.findIndex((entry) => entry.id === effect.id);
+    if (index >= 0) list[index] = cloneStatusEffect(effect);
+    else list.push(cloneStatusEffect(effect));
+  }
+
+  /** Remove one effect id, or every effect when `id` is omitted. */
+  clearStatusEffects(
+    target: EntityData | string | null,
+    id?: string,
+  ): number {
+    const key = this.runtimeKey(target);
+    const list = this.statusEffects.get(key);
+    if (!list) return 0;
+    if (id === undefined) {
+      const removed = list.length;
+      this.statusEffects.delete(key);
+      return removed;
+    }
+    const remaining = list.filter((effect) => effect.id !== id);
+    const removed = list.length - remaining.length;
+    if (remaining.length > 0) this.statusEffects.set(key, remaining);
+    else this.statusEffects.delete(key);
+    return removed;
+  }
+
+  /**
+   * Advance every effect by one tick, dropping effects whose duration reaches
+   * zero. Returns the number of effects that expired.
+   */
+  tickStatusEffects(): number {
+    let expired = 0;
+    for (const [key, list] of [...this.statusEffects]) {
+      const remaining: StatusEffect[] = [];
+      for (const effect of list) {
+        effect.durationTicks -= 1;
+        if (effect.durationTicks > 0) remaining.push(effect);
+        else expired += 1;
+      }
+      if (remaining.length > 0) this.statusEffects.set(key, remaining);
+      else this.statusEffects.delete(key);
+    }
+    return expired;
+  }
+
+  setTriggerEnabled(
+    target: EntityData | string | null,
+    objective: string,
+    enabled = true,
+  ): void {
+    const state = this.ensurePlayerState(target);
+    if (enabled) state.enabledTriggers.add(objective);
+    else state.enabledTriggers.delete(objective);
   }
 
   /* ------------------------------- data ------------------------------- */

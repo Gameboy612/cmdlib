@@ -46,9 +46,10 @@ path as well.
 ## Projects
 
 Open `/projects/`. A project groups one or more datapacks (packs); files stay in
-the browser. You can create, rename and delete projects, add packs to a project,
-or paste a public GitHub repository/folder URL and import every datapack it
-contains as a new local project.
+the browser. You can create, rename and delete projects (including from a
+right-click menu), add packs to a project, import a `.zip` datapack as a new
+project, or paste a public GitHub repository/folder URL and import every
+datapack it contains.
 
 ## Editor
 
@@ -68,7 +69,8 @@ Open `/editor/`. The starter pack is already loaded:
    right-click an entity in the preview for **Inspect / Teleport / Copy NBT**.
    Right-drag the preview to rotate it.
 8. Create, rename and delete files inline in the Explorer — no browser dialogs —
-   and drag files between folders to move them.
+   and drag files between folders to move them. Multiple files stay open in the
+   editor tab strip; closing all leaves the Code panel open.
 9. **File → Preferences** records custom keybindings. **View** ticks panels that
    are already open.
 10. New packs are added beside the current pack, not instead of it. **+ tag**
@@ -95,18 +97,19 @@ datapack `.zip`; **File → Import** reads one back.
 | Macros | `$` lines with `$(key)` interpolation, `$$(` escaping | Missing arguments and newline injection are rejected |
 | Data | `data get/modify/merge/remove` on `storage`, `entity`, `block` | `set/merge/append/prepend/insert/remove`, `value/from/string` sources, NBT paths with indexes and filters |
 | Storage | `data storage` namespaces | Live storage inspector and NBT tree |
-| Execute | `as`, `at`, `positioned`, `align`, `rotated`, `facing`, `in`, `if`/`unless`, `store`, `run` | `if score`, `if entity`, `if block`, `if data`, `if dimension`, `if loaded` |
+| Execute | `as`, `at`, `positioned`, `align`, `rotated`, `facing`, `in`, `anchored`, `if`/`unless`, `store`, `run` | `if score`, `if entity`, `if block`, `if data`, `if dimension`, `if loaded`; eyes/feet anchors |
 | Entities | `summon`, `kill`, `teleport`/`tp`, `tag` | Static objects with position + NBT; **no AI and no physics** |
+| Player state | `gamemode`, `give`, `clear`, `effect give/clear`, `scoreboard players enable`, `trigger` | Simulated game mode, inventory, effect durations and trigger objectives; no visual behaviour |
 | Chat | `say`, `tellraw`, `me` | Rendered with Minecraft colour codes and component styles |
 | Scheduling | `schedule function`, `schedule clear` | Tick queue driven by the Timeline; `t`/`s`/`d` durations |
 | Misc | `return`, `return run`, `setblock`, `reload` | `return` stops a function with a value |
 
 ### Deliberately not simulated
 
-`give`, `effect`, `gamemode`, `particle`, `playsound`, `loot`, `advancement`,
-`worldborder`, `bossbar` and the other commands outside the table above are
-**recognised by the linter** with their 26.3 metadata, but the runtime reports
-them as unsupported. They do not silently fail.
+`particle`, `playsound`, `loot`, `advancement`, `worldborder`, `bossbar` and the
+other commands outside the table above are **recognised by the linter** with
+their 26.3 metadata, but the runtime reports them as unsupported. They do not
+silently fail.
 
 Entities are not game entities in the AI sense. They are objects:
 
@@ -116,7 +119,7 @@ Entities are not game entities in the AI sense. They are objects:
 
 `Pos`, `Rotation`, `Health`, `CustomName`, `Tags` and the rest of the entity NBT
 are the source of truth. Change `Pos` with `data modify` and the preview moves
-the entity. Nothing ticks on its own.
+the entity. Nothing ticks until you start the Timeline (or run `/schedule`).
 
 ---
 
@@ -133,14 +136,16 @@ src/lib/mc/
   world.ts         world state: objectives, scores, storages, entities, titles
   selectors.ts     @s @p @a @e @r @n, filters, sorting, limits
   cursor.ts        command cursor + diagnostics with source offsets
-  commands/        scoreboard, title, function, data, execute, core
-  simulator.ts     function loading, macro expansion, load tags, logging
-  datapack.ts      project model, parsing, starter/landing packs
+  commands/        scoreboard, title, function, data, execute, player, schedule, core
+  simulator.ts     function loading, macro expansion, load tags, ticks, scheduling
+  datapack.ts      pack parsing, starter/landing packs, tags, objectives
+  tag-kinds.ts     function/item/block/entity/fluid/game-event tag metadata
+  projects.ts      project → multiple packs workspace model
 
 src/lib/lint/      project-wide lint pass using the real parser
 src/lib/editor/    mcfunction language, completion engine, CodeMirror setup
-src/lib/state/     zustand workbench, simulator lifecycle, quick fixes
-src/components/    landing, editor, world preview, NBT tree
+src/lib/state/     zustand workbench, projects, preferences, simulator lifecycle
+src/components/    landing, projects, editor, world preview, NBT tree
 ```
 
 The **simulator is not a second implementation of the grammar**. The linter

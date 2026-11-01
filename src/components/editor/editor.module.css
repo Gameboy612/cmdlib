@@ -40,7 +40,7 @@
   --dv-activegroup-hiddenpanel-tab-color: #7f8791;
   --dv-inactivegroup-visiblepanel-tab-color: #9aa0a7;
   --dv-inactivegroup-hiddenpanel-tab-color: #656d75;
-  --dv-tabs-and-actions-container-height: 28px;
+  --dv-tabs-and-actions-container-height: 22px;
   --dv-tab-font-size: 8.5px;
   --dv-tab-border-radius: 0;
   --dv-tab-margin: 0;
@@ -54,6 +54,11 @@
   --dv-drag-over-background-color: rgba(255, 122, 69, 0.14);
   --dv-drag-over-border-color: rgba(255, 122, 69, 0.5);
   --dv-icon-hover-background-color: rgba(255, 255, 255, 0.08);
+}
+.dock :global(.dv-tabs-and-actions-container),
+.dock :global(.dv-tab) {
+  height: 22px !important;
+  min-height: 0 !important;
 }
 .dock :global(.dv-tab) {
   font-family: var(--mono);
@@ -631,6 +636,45 @@
 /* Code                                                               */
 /* ------------------------------------------------------------------ */
 .editorPanel { height: 100%; }
+.editorTabs {
+  flex: none;
+  height: 24px;
+  padding: 2px 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  background: #0c1014;
+  border-bottom: 1px solid #1c2229;
+  scrollbar-width: none;
+}
+.editorTabs::-webkit-scrollbar { display: none; }
+.editorTab {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 180px;
+  border-right: 1px solid #1c2229;
+  color: var(--faint);
+}
+.editorTabActive { color: var(--text); background: #13181e; box-shadow: inset 0 -1px 0 var(--accent); }
+.editorTabMain {
+  min-width: 0;
+  padding: 0 5px 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 7.5px;
+}
+.editorTabClose {
+  width: 17px;
+  align-self: stretch;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.editorTabClose:hover { color: var(--danger); background: rgba(255, 255, 255, 0.04); }
 .editorHost { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 .editorHost :global(.editor-host) { height: 100%; }
 .editorHost :global(.cm-editor) { height: 100%; }
@@ -830,6 +874,47 @@
 /* ------------------------------------------------------------------ */
 .entitiesPanel { height: 100%; }
 .entitiesBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.playerRuntime {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #1e242b;
+  background: #0a0e12;
+  font-family: var(--mono);
+  font-size: 7.5px;
+}
+.playerRuntimeLine { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.playerRuntimeLabel {
+  width: 52px;
+  flex: none;
+  color: var(--faint);
+  font-size: 6.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.playerRuntimeLine b { color: var(--text); font-weight: 500; }
+.playerMode {
+  padding: 1px 4px;
+  border: 1px solid rgba(255, 122, 69, 0.3);
+  border-radius: 2px;
+  color: var(--accent-soft);
+  font-size: 6.5px;
+  text-transform: uppercase;
+}
+.playerRuntimeCount { margin-left: auto; color: var(--faint); }
+.playerRuntimeMuted { color: var(--faint); }
+.playerChip {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 4px;
+  border: 1px solid #273039;
+  border-radius: 2px;
+  color: var(--text-dim);
+}
 .entityList { flex: none; max-height: 40%; overflow: auto; border-bottom: 1px solid #1a2027; }
 .entityRow {
   width: 100%;

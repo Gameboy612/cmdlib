@@ -114,6 +114,21 @@ describe("simulator", () => {
     expect(plainText(sim.world.titles.title!)).toBe("Hello");
   });
 
+  it("copies a whole entity payload when the source path is omitted", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    const outcome = sim.runCommand(
+      "data modify storage su:temp Entity set from entity @s",
+    );
+    expect(outcome.ok).toBe(true);
+    const entity = sim.world.storage("su:temp")?.value.Entity;
+    expect(isCompound(entity)).toBe(true);
+    if (!isCompound(entity)) return;
+    expect(entity.value.Pos).toBeTruthy();
+    expect(entity.value.Health).toBeTruthy();
+  });
+
   it("edits storage with data modify and reports with data get", () => {
     const project = createDemoProject("26.3");
     const sim = new Simulator({ project });

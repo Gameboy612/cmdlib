@@ -161,9 +161,7 @@ function objectives(cursor: Cursor, ctx: CommandContext): CommandResult {
 function players(cursor: Cursor, ctx: CommandContext): CommandResult {
   const action = cursor.readWord();
   if (action === "display") return display(cursor, ctx);
-  if (action === "enable") {
-    cursor.error("scoreboard players enable is not simulated yet", cursor.mark() - 6, "unsupported");
-  }
+  if (action === "enable") return enable(cursor, ctx);
   if (!["set", "add", "remove", "reset", "get", "operation"].includes(action)) {
     cursor.error(`Unknown players action '${action}'`, cursor.mark() - action.length);
   }
@@ -362,6 +360,55 @@ function players(cursor: Cursor, ctx: CommandContext): CommandResult {
     }
   }
   return { result: 0, success: false };
+}
+
+function enable(cursor: Cursor, ctx: CommandContext): CommandResult {
+  const targetsStart = cursor.mark();
+  const targetsRaw = cursor.readTargetsRaw().raw;
+  const objectiveStart = cursor.mark();
+  const objectiveName = readObjective(cursor);
+  const objective = ctx.world.objectives.get(objectiveName);
+  if (!objective) {
+    cursor.error(
+      `Unknown objective '${objectiveName}'`,
+      objectiveStart,
+      "unknown-objective",
+    );
+  }
+  if (objective.criterion !== "trigger") {
+    cursor.error(
+      `Objective '${objectiveName}' uses the '${objective.criterion}' criterion, not 'trigger'`,
+      objectiveStart,
+      "trigger-objective",
+    );
+  }
+
+  let holders: HolderTarget[];
+  try {
+    holders = resolveHolderTargets(ctx.world, targetsRaw, {
+      source: ctx.source,
+      origin: ctx.pos,
+      lenient: ctx.lint,
+    });
+  } catch (error) {
+    if (error instanceof SelectorError) {
+      cursor.error(error.message, targetsStart, "selector");
+    }
+    throw error;
+  }
+  if (!ctx.lint) {
+    for (const target of holders) {
+      ctx.world.setTriggerEnabled(target.holder, objectiveName, true);
+    }
+  }
+  feedback(
+    ctx,
+    "success",
+    holders.length === 1
+      ? `Enabled trigger '${objectiveName}' for ${holders[0].holder}`
+      : `Enabled trigger '${objectiveName}' for ${holders.length} holders`,
+  );
+  return { result: holders.length, success: true };
 }
 
 function display(cursor: Cursor, ctx: CommandContext): CommandResult {

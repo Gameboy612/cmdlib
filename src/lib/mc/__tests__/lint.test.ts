@@ -65,7 +65,7 @@ describe("linter", () => {
 
   it("keeps unsupported commands as warnings, not errors", () => {
     const project = createDemoProject("26.3");
-    project.files["data/cmdlib/function/other.mcfunction"] = "give @s minecraft:stone 1";
+    project.files["data/cmdlib/function/other.mcfunction"] = "xp add @s 1";
     const report = lintProject(project);
     const diag = report.diagnostics.find((d) => d.code === "unsupported-command");
     expect(diag?.severity).toBe("warning");
@@ -99,5 +99,39 @@ describe("linter", () => {
     const codes = report.diagnostics.map((d) => d.code);
     expect(codes).toContain("invalid-tag-json");
     expect(codes).toContain("missing-tag-values");
+  });
+});
+
+describe("cross-pack objective resolution", () => {
+  it("seeds objectives declared by sibling packs", () => {
+    const project = createProject("26.3");
+    project.files["data/cmdlib/function/uses.mcfunction"] =
+      "scoreboard players set @s shared 1\n";
+    const report = lintProject(project, {
+      objectiveSources: [
+        {
+          "data/other/function/load.mcfunction":
+            "scoreboard objectives add shared dummy\n",
+        },
+      ],
+    });
+    expect(
+      report.diagnostics.filter((entry) => entry.code === "unknown-objective"),
+    ).toHaveLength(0);
+  });
+});
+
+describe("objective declaration pre-scan", () => {
+  it("does not swallow the next declaration line", () => {
+    const project = createProject("26.3");
+    project.files["data/cmdlib/function/objectives.mcfunction"] = [
+      "scoreboard objectives add first dummy",
+      "scoreboard objectives add second trigger",
+      "scoreboard players set @s second 1",
+    ].join("\n");
+    const report = lintProject(project);
+    expect(
+      report.diagnostics.filter((entry) => entry.code === "unknown-objective"),
+    ).toHaveLength(0);
   });
 });
