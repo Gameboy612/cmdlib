@@ -12,13 +12,14 @@ import {
 } from "@/lib/mc/datapack";
 import { getVersion, VERSIONS, formatPackFormat } from "@/lib/mc/version";
 import { COMMANDS, COMMAND_NAMES, entityInfo } from "@/lib/mc/data";
-import { entityCustomName, entityPos } from "@/lib/mc/entities";
+import { entityCustomName, entityPos, type EntityData } from "@/lib/mc/entities";
 import { stringifySnbt } from "@/lib/mc/nbt";
 import { toLspDiagnostics, type Diagnostic as LintDiagnostic } from "@/lib/lint";
 import { copyText } from "@/lib/io";
 import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
 import type { DockviewPanelApi } from "dockview";
+import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/components/ui/ContextMenu";
 
 /* ------------------------------------------------------------------ */
 /* Shared                                                             */
@@ -105,7 +106,9 @@ export function ExplorerPanel() {
   const createFile = useWorkbench((state) => state.createFile);
   const deleteFile = useWorkbench((state) => state.deleteFile);
   const renameFile = useWorkbench((state) => state.renameFile);
+  const runActive = useWorkbench((state) => state.runActive);
   const lintReport = useWorkbench((state) => state.lintReport);
+  const showToast = useWorkbench((state) => state.showToast);
   const version = getVersion(project.versionId);
   const tree = useMemo(() => buildTree(project.files), [project.files]);
   const unusedPaths = useMemo(
@@ -118,6 +121,7 @@ export function ExplorerPanel() {
     [lintReport],
   );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const activeNamespace = useMemo(() => {
     const match = /^data\/([^/]+)\//.exec(activePath);
@@ -133,7 +137,7 @@ export function ExplorerPanel() {
     });
   };
 
-  const addFunction = () => {
+  const addFunction = (folder?: string) => {
     const raw = window.prompt("New function name (without .mcfunction)", "new_function");
     if (!raw) return;
     const name = raw
@@ -142,23 +146,100 @@ export function ExplorerPanel() {
       .replace(/\.mcfunction$/, "")
       .replace(/\s+/g, "_");
     if (!name) return;
-    const path = `data/${activeNamespace}/${version.functionFolder}/${name}.mcfunction`;
-    createFile(path, `# ${activeNamespace}:${name}\n`);
+    const namespace = folder
+      ? /^data\/([^/]+)\//.exec(folder)?.[1] ?? activeNamespace
+      : activeNamespace;
+    const target =
+      folder && folder.endsWith(`/${version.functionFolder}`)
+        ? folder
+        : `data/${namespace}/${version.functionFolder}`;
+    const path = `${target}/${name}.mcfunction`;
+    createFile(path, `# ${namespace}:${name}\n`);
   };
 
-  const addTag = () => {
+  const addTag = (folder?: string) => {
     const raw = window.prompt("New function tag name", "tick");
     if (!raw) return;
     const name = raw.trim().replace(/\s+/g, "_").replace(/\.json$/, "");
     if (!name) return;
-    const path = `data/${activeNamespace}/${version.tagFolder}/${name}.json`;
+    const namespace = folder
+      ? /^data\/([^/]+)\//.exec(folder)?.[1] ?? activeNamespace
+      : activeNamespace;
+    const target =
+      folder && folder.endsWith(`/${version.tagFolder}`)
+        ? folder
+        : `data/${namespace}/${version.tagFolder}`;
+    const path = `${target}/${name}.json`;
     createFile(path, `${JSON.stringify({ values: [] }, null, 2)}\n`);
   };
 
-  const addFile = () => {
-    const raw = window.prompt("Full path inside the pack", "data/cmdlib/function/utility.mcfunction");
+  const addFile = (folder?: string) => {
+    const raw = window.prompt(
+      "Full path inside the pack",
+      `${folder ?? `data/${activeNamespace}/${version.functionFolder}`}/utility.mcfunction`,
+    );
     if (!raw) return;
-    createFile(raw.trim(), raw.endsWith(".json") ? "{}\n" : "");
+    createFile(raw.trim().replace(/^\/+/, ""), raw.endsWith(".json") ? "{}\n" : "");
+  };
+
+  const copyPath = (path: string) => {
+    copyText(path);
+    showToast("Path copied", "success");
+  };
+
+  const duplicate = (path: string) => {
+    const dot = path.lastIndexOf(".");
+    const base = dot > 0 ? path.slice(0, dot) : path;
+    const ext = dot > 0 ? path.slice(dot) : "";
+    let candidate = `${base}.copy${ext}`;
+    let index = 2;
+    while (candidate in project.files) {
+      candidate = `${base}.copy${index}${ext}`;
+      index++;
+    }
+    createFile(candidate, project.files[path] ?? "");
+  };
+
+  const openMenu = (event: React.MouseEvent, items: ContextMenuEntry[]) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ x: event.clientX, y: event.clientY, items });
+  };
+
+  const fileMenu = (event: React.MouseEvent, path: string) => {
+    openFile(path);
+    openMenu(event, [
+      { label: "Open", onSelect: () => openFile(path) },
+      ...(path.endsWith(".mcfunction")
+        ? [{ label: "Run function", onSelect: runActive }]
+        : []),
+      { label: "Rename…", onSelect: () => rename(path) },
+      { label: "Duplicate", onSelect: () => duplicate(path) },
+      { separator: true },
+      { label: "Copy path", onSelect: () => copyPath(path) },
+      { separator: true },
+      { label: "Delete", danger: true, onSelect: () => remove(path) },
+    ]);
+  };
+
+  const folderMenu = (event: React.MouseEvent, path: string) => {
+    const isFunctionFolder = path.endsWith(`/${version.functionFolder}`);
+    const isTagFolder = path.endsWith(`/${version.tagFolder}`);
+    openMenu(event, [
+      { label: "New file…", onSelect: () => addFile(path) },
+      ...(isFunctionFolder
+        ? [{ label: "New function…", onSelect: () => addFunction(path) }]
+        : []),
+      ...(isTagFolder
+        ? [{ label: "New tag…", onSelect: () => addTag(path) }]
+        : []),
+      { separator: true },
+      {
+        label: collapsed.has(path) ? "Expand" : "Collapse",
+        onSelect: () => toggle(path),
+      },
+      { label: "Copy path", onSelect: () => copyPath(path) },
+    ]);
   };
 
   const remove = (path: string) => {
@@ -184,6 +265,7 @@ export function ExplorerPanel() {
           title={unused ? "Function is never called by this pack" : undefined}
           style={{ paddingLeft: 8 + depth * 13 }}
           onClick={() => openFile(node.path)}
+          onContextMenu={(event) => fileMenu(event, node.path)}
           role="button"
           tabIndex={0}
           onKeyDown={(event) => {
@@ -214,6 +296,7 @@ export function ExplorerPanel() {
             className={styles.treeFolder}
             style={{ paddingLeft: 8 + depth * 13 }}
             onClick={() => toggle(node.path)}
+            onContextMenu={(event) => folderMenu(event, node.path)}
             role="button"
             tabIndex={0}
             onKeyDown={(event) => {
@@ -239,15 +322,27 @@ export function ExplorerPanel() {
 
   return (
     <div className={`${styles.panel} ${styles.explorerPanel}`}>
-      <div className={styles.tree}>{renderNode(tree, 0)}</div>
+      <div
+        className={styles.tree}
+        onContextMenu={(event) =>
+          openMenu(event, [
+            { label: "New function…", onSelect: () => addFunction() },
+            { label: "New file…", onSelect: () => addFile() },
+            { label: "New tag…", onSelect: () => addTag() },
+          ])
+        }
+      >
+        {renderNode(tree, 0)}
+      </div>
       <div className={styles.explorerFoot}>
         <span className={styles.explorerActions}>
-          <button type="button" onClick={addFunction}>+ function</button>
-          <button type="button" onClick={addFile}>+ file</button>
-          <button type="button" onClick={addTag}>+ tag</button>
+          <button type="button" onClick={() => addFunction()}>+ function</button>
+          <button type="button" onClick={() => addFile()}>+ file</button>
+          <button type="button" onClick={() => addTag()}>+ tag</button>
         </span>
         <span>{formatPackFormat(version.packFormat)}</span>
       </div>
+      <ContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} />
     </div>
   );
 }
@@ -300,6 +395,73 @@ export function PreviewPanel() {
   const { sim, world, revision } = useWorldSnapshot();
   const selected = useWorkbench((state) => state.selectedEntity);
   const selectEntity = useWorkbench((state) => state.selectEntity);
+  const requestPanel = useWorkbench((state) => state.requestPanel);
+  const runCommand = useWorkbench((state) => state.runCommand);
+  const runLoad = useWorkbench((state) => state.runLoad);
+  const showToast = useWorkbench((state) => state.showToast);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  const previewMenu = (event: React.MouseEvent, entity: EntityData | null) => {
+    const items: ContextMenuEntry[] = [];
+    if (entity) {
+      const pos = entityPos(entity);
+      items.push(
+        {
+          label: "Inspect entity",
+          onSelect: () => {
+            selectEntity(entity.uuid);
+            requestPanel("entities");
+          },
+        },
+        {
+          label: "Teleport player here",
+          onSelect: () => runCommand(`tp @s ${pos.x} ${pos.y} ${pos.z}`),
+        },
+        { separator: true },
+        {
+          label: "Copy UUID",
+          onSelect: () => {
+            copyText(entity.uuid);
+            showToast("UUID copied", "success");
+          },
+        },
+        {
+          label: "Copy position",
+          onSelect: () => {
+            copyText(`${pos.x} ${pos.y} ${pos.z}`);
+            showToast("Position copied", "success");
+          },
+        },
+        {
+          label: "Copy NBT",
+          onSelect: () => {
+            copyText(stringifySnbt(entity.nbt));
+            showToast("Entity NBT copied", "success");
+          },
+        },
+      );
+    } else {
+      const player = world.player();
+      items.push(
+        { label: "Run load tags", onSelect: runLoad },
+        {
+          label: "Open entities",
+          onSelect: () => requestPanel("entities"),
+        },
+      );
+      if (player) {
+        const pos = entityPos(player);
+        items.push({
+          label: "Copy player position",
+          onSelect: () => {
+            copyText(`${pos.x} ${pos.y} ${pos.z}`);
+            showToast("Player position copied", "success");
+          },
+        });
+      }
+    }
+    setContextMenu({ x: event.clientX, y: event.clientY, items });
+  };
 
   return (
     <div className={`${styles.panel} ${styles.previewPanel}`}>
@@ -310,14 +472,16 @@ export function PreviewPanel() {
           interactive
           selected={selected}
           onSelect={selectEntity}
+          onContextMenu={previewMenu}
         />
       </div>
       <div className={styles.panelFoot}>
         <span>{sim.version.id}</span>
         <span>{world.entities.length} {world.entities.length === 1 ? "entity" : "entities"}</span>
         <span>{world.titles.title ? "title active" : "no title"}</span>
-        <span className={styles.panelFootRight}>drag · zoom · click</span>
+        <span className={styles.panelFootRight}>drag · zoom · right-click</span>
       </div>
+      <ContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} />
     </div>
   );
 }

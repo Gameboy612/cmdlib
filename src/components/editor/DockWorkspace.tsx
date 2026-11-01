@@ -129,12 +129,24 @@ export function DockWorkspace() {
         <DockviewReact
           components={COMPONENTS}
           onReady={onReady}
-          getTabContextMenuItems={() => ["float", "close", "maximize", "separator"]}
+          getTabContextMenuItems={() => [
+            "close",
+            "closeOthers",
+            "separator",
+            "float",
+            "maximize",
+            "separator",
+            "closeAll",
+            {
+              label: "Reset layout",
+              action: () => useWorkbench.getState().resetLayout(),
+            },
+          ]}
           watermarkComponent={() => (
             <div className={styles.watermark}>
               <img src={asset("/art/mark.svg")} alt="" width={40} height={40} />
               <span>All panels are closed.</span>
-              <span>Open one from the Panels menu, or reset the layout.</span>
+              <span>Open one from the View menu, or reset the layout.</span>
             </div>
           )}
         />

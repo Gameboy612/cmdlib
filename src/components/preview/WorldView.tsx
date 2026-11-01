@@ -16,6 +16,7 @@ export interface WorldViewProps {
   compact?: boolean;
   selected?: string | null;
   onSelect?: (uuid: string | null) => void;
+  onContextMenu?: (event: React.MouseEvent<HTMLCanvasElement>, entity: EntityData | null) => void;
   showHud?: boolean;
   className?: string;
 }
@@ -36,6 +37,7 @@ export function WorldView({
   compact = false,
   selected = null,
   onSelect,
+  onContextMenu,
   showHud = true,
   className,
 }: WorldViewProps) {
@@ -336,7 +338,7 @@ export function WorldView({
   };
 
   const onPointerDown = (event: React.PointerEvent) => {
-    if (!interactive) return;
+    if (!interactive || event.button !== 0) return;
     pointer.current = {
       x: event.clientX,
       y: event.clientY,
@@ -362,7 +364,7 @@ export function WorldView({
     }
   };
   const onPointerUp = (event: React.PointerEvent) => {
-    if (!interactive) return;
+    if (!interactive || event.button !== 0) return;
     if (!pointer.current.moved) {
       const entity = pick(event.clientX, event.clientY);
       onSelect?.(entity?.uuid ?? null);
@@ -392,6 +394,11 @@ export function WorldView({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onContextMenu={(event) => {
+          if (!interactive) return;
+          event.preventDefault();
+          onContextMenu?.(event, pick(event.clientX, event.clientY));
+        }}
         onPointerLeave={() => {
           setHovered(null);
           pointer.current.dragging = false;

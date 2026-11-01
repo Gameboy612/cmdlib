@@ -52,9 +52,15 @@ Open `/editor/`. The starter pack is already loaded:
 4. The command palette is available from the top-right *Palette* button or
    `Ctrl/Cmd + K`.
 5. `Ctrl/Cmd + Space` opens autocomplete.
+6. Right-click a file or folder for **Open / Run function / Rename / Duplicate /
+   Delete / Copy path**; right-click a dock tab for close/float/maximize;
+   right-click an entity in the preview for **Inspect / Teleport / Copy NBT**.
 
-Everything is stored in `localStorage`. **Export** writes a standard datapack
-`.zip`; **Import** reads one back.
+The simulator runs load tags; `tick.mcfunction` is scaffolded and linted, but
+there is no background game-tick loop.
+
+Everything is stored in `localStorage`. **File → Export** writes a standard
+datapack `.zip`; **File → Import** reads one back.
 
 ---
 
