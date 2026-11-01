@@ -190,7 +190,13 @@ function runChain(cursor: Cursor, ctx: CommandContext): CommandResult {
       const condition = parseCondition(cursor, ctx);
       const value = condition();
       const negate = sub === "unless";
-      if ((negate && value) || (!negate && !value)) {
+      const passed = negate ? !value : value;
+      // `/execute if …` and `/execute unless …` are valid terminal
+      // subcommands: they return success/failure without requiring `run`.
+      if (cursor.done()) {
+        return { result: passed ? 1 : 0, success: passed };
+      }
+      if (!passed) {
         if (ctx.lint) {
           // Still parse the tail so the linter sees its syntax.
           const probe = cursor.mark();

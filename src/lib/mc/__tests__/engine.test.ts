@@ -240,3 +240,27 @@ describe("unset scores in execute if", () => {
     expect(sim.world.logs.some((entry) => entry.text.includes("PASS"))).toBe(true);
   });
 });
+
+describe("terminal execute if", () => {
+  it("passes without a run clause when two unset scores match", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add tpa dummy");
+    const outcome = sim.runCommand("execute if score @s tpa = @s tpa");
+    expect(outcome.ok).toBe(true);
+    expect(outcome.success).toBe(true);
+  });
+
+  it("fails without an error when the condition is false", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add tpa dummy");
+    sim.runCommand("scoreboard objectives add missing dummy");
+    sim.runCommand("scoreboard players set @s tpa 1");
+    const outcome = sim.runCommand("execute if score @s tpa = @s missing");
+    expect(outcome.ok).toBe(true);
+    expect(outcome.success).toBe(false);
+  });
+});
