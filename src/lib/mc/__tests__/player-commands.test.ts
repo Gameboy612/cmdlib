@@ -237,6 +237,21 @@ describe("/scoreboard players enable and /trigger", () => {
     expect(sim.world.getScore("Dev", "reward")).toBe(5);
   });
 
+  it("fails when the trigger is already enabled", () => {
+    const sim = newSim();
+    sim.runCommand("scoreboard objectives add enabled dummy");
+    const first = sim.runCommand("scoreboard players enable @s reward");
+    expect(first.success).toBe(true);
+    const second = sim.runCommand("scoreboard players enable @s reward");
+    expect(second.success).toBe(false);
+    expect(second.result).toBe(0);
+
+    sim.runCommand(
+      "execute store success score #temp enabled run scoreboard players enable @s reward",
+    );
+    expect(sim.world.getScore("#temp", "enabled")).toBe(0);
+  });
+
   it("defaults to zero and applies the existing score clamp", () => {
     const sim = newSim();
     sim.runCommand("scoreboard players enable @s reward");

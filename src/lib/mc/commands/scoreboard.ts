@@ -396,19 +396,25 @@ function enable(cursor: Cursor, ctx: CommandContext): CommandResult {
     }
     throw error;
   }
-  if (!ctx.lint) {
-    for (const target of holders) {
+  const enabledHolders: string[] = [];
+  for (const target of holders) {
+    if (ctx.world.isTriggerEnabled(target.holder, objectiveName)) continue;
+    enabledHolders.push(target.holder);
+    if (!ctx.lint) {
       ctx.world.setTriggerEnabled(target.holder, objectiveName, true);
     }
+  }
+  if (enabledHolders.length === 0) {
+    return { result: 0, success: false };
   }
   feedback(
     ctx,
     "success",
-    holders.length === 1
-      ? `Enabled trigger '${objectiveName}' for ${holders[0].holder}`
-      : `Enabled trigger '${objectiveName}' for ${holders.length} holders`,
+    enabledHolders.length === 1
+      ? `Enabled trigger '${objectiveName}' for ${enabledHolders[0]}`
+      : `Enabled trigger '${objectiveName}' for ${enabledHolders.length} holders`,
   );
-  return { result: holders.length, success: true };
+  return { result: enabledHolders.length, success: true };
 }
 
 function display(cursor: Cursor, ctx: CommandContext): CommandResult {
