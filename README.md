@@ -63,7 +63,7 @@ Open `/editor/`. The starter pack is already loaded:
 4. Type a command in the console, for example `say hello`.
 5. The command palette is the **cmdlib mark + K** button, or
    `Ctrl/Cmd + K`.
-6. `Ctrl/Cmd + Space` opens editor autocomplete; `Tab` accepts the active suggestion. The console has its own **Tab autocomplete** for commands, selectors, objectives, functions, storage and NBT paths.
+6. `Ctrl/Cmd + Space` opens editor autocomplete; `Tab` accepts the active suggestion. The console has its own **Tab autocomplete** for commands, selectors, objectives, enabled triggers, functions, storage and NBT paths, plus log-level filter chips for errors, warnings, chat/tellraw, data, commands and system messages.
 7. In the command palette (`Ctrl/Cmd + K`), type a function id such as `cmdlib:stats` to jump straight to its file.
 8. Right-click a file or folder for **Open / Run function / Rename / Duplicate /
    Delete / Copy path**; right-click a dock tab for close/float/maximize;

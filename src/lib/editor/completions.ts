@@ -34,6 +34,8 @@ export interface CompletionIndex {
   functions: Array<{ id: string; path: string; hasMacros: boolean }>;
   tags: Array<{ id: string; values: string[] }>;
   objectives: string[];
+  /** Trigger objectives currently enabled for the default player. */
+  enabledTriggers: string[];
   storages: string[];
   holders: string[];
   storagePaths: Map<string, string[]>;
@@ -63,12 +65,16 @@ export function buildCompletionIndex(
           .concat(["Dev"])
       : []),
   ]);
+  const enabledTriggers = world
+    ? [...(world.playerState()?.enabledTriggers ?? [])]
+    : [];
   return {
     project,
     version,
     functions,
     tags,
     objectives,
+    enabledTriggers,
     storages,
     holders,
     storagePaths: collectStoragePaths(project),
@@ -184,6 +190,15 @@ function commandArgumentCompletion(
       return summonCompletion(arg, words, index);
     case "tag":
       return tagCompletion(arg, current, index);
+    case "trigger":
+      if (arg === 0) {
+        return index.enabledTriggers.map((name) => ({
+          label: name,
+          type: "variable",
+          detail: "enabled trigger",
+        }));
+      }
+      return null;
     case "kill":
     case "tp":
     case "teleport":

@@ -850,12 +850,35 @@ export function PreviewPanel() {
 /* ------------------------------------------------------------------ */
 /* Console                                                            */
 /* ------------------------------------------------------------------ */
+type ConsoleFilter = "error" | "warning" | "chat" | "data" | "command" | "system";
+
+const CONSOLE_FILTERS: Array<{ id: ConsoleFilter; label: string }> = [
+  { id: "error", label: "errors" },
+  { id: "warning", label: "warnings" },
+  { id: "chat", label: "chat" },
+  { id: "data", label: "data" },
+  { id: "command", label: "cmds" },
+  { id: "system", label: "system" },
+];
+
+function consoleFilterFor(kind: string): ConsoleFilter {
+  if (kind === "error") return "error";
+  if (kind === "warning") return "warning";
+  if (kind === "chat" || kind === "actionbar") return "chat";
+  if (kind === "data") return "data";
+  if (kind === "command") return "command";
+  return "system";
+}
+
 export function ConsolePanel() {
   const { sim, world, revision } = useWorldSnapshot();
   const runCommand = useWorkbench((state) => state.runCommand);
   const clearConsole = useWorkbench((state) => state.clearConsole);
   const recent = useWorkbench((state) => state.recentCommands);
   const completionIndex = useCompletionIndex();
+  const [filters, setFilters] = useState<Set<ConsoleFilter>>(
+    () => new Set(CONSOLE_FILTERS.map((filter) => filter.id)),
+  );
   const [value, setValue] = useState("");
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState<{
@@ -920,11 +943,61 @@ export function ConsolePanel() {
   };
 
   const logs = world.logs;
+  const visibleLogs = logs.filter((entry) =>
+    filters.has(consoleFilterFor(entry.kind)),
+  );
+  const filterCounts = logs.reduce(
+    (counts, entry) => {
+      const filter = consoleFilterFor(entry.kind);
+      counts[filter] = (counts[filter] ?? 0) + 1;
+      return counts;
+    },
+    {} as Partial<Record<ConsoleFilter, number>>,
+  );
+  const allVisible = filters.size === CONSOLE_FILTERS.length;
   const completionOpen = !!suggestions && suggestions.options.length > 0;
 
   return (
     <div className={`${styles.panel} ${styles.consolePanel}`}>
       <div className={styles.consoleBody}>
+        <div className={styles.consoleFilters} role="toolbar" aria-label="Console log filters">
+          <button
+            type="button"
+            className={`${styles.consoleFilter} ${allVisible ? styles.consoleFilterActive : ""}`}
+            onClick={() =>
+              setFilters(
+                allVisible
+                  ? new Set()
+                  : new Set(CONSOLE_FILTERS.map((filter) => filter.id)),
+              )
+            }
+            aria-pressed={allVisible}
+          >
+            all
+          </button>
+          {CONSOLE_FILTERS.map((filter) => {
+            const active = filters.has(filter.id);
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                className={`${styles.consoleFilter} ${active ? styles.consoleFilterActive : ""}`}
+                onClick={() =>
+                  setFilters((current) => {
+                    const next = new Set(current);
+                    if (next.has(filter.id)) next.delete(filter.id);
+                    else next.add(filter.id);
+                    return next;
+                  })
+                }
+                aria-pressed={active}
+              >
+                {filter.label}
+                <b>{filterCounts[filter.id] ?? 0}</b>
+              </button>
+            );
+          })}
+        </div>
         <div className={styles.consoleOut} ref={scrollRef}>
           {logs.length === 0 && (
             <div className={styles.consoleWelcome}>
@@ -932,7 +1005,12 @@ export function ConsolePanel() {
               <p>Type a Minecraft command below. Tab autocompletes.</p>
             </div>
           )}
-          {logs.map((entry) => (
+          {logs.length > 0 && visibleLogs.length === 0 && (
+            <div className={styles.consoleWelcome}>
+              <p>Every log level is hidden. Enable one above.</p>
+            </div>
+          )}
+          {visibleLogs.map((entry) => (
             <div key={entry.id} className={`${styles.logLine} ${styles[`log_${entry.kind}`]}`}>
               <span className={styles.logMark}>
                 {entry.kind === "command"

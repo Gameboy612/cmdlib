@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDemoProject } from "../../mc/__tests__/fixtures";
 import { getVersion } from "../../mc/version";
+import { World } from "../../mc/world";
 import { buildCompletionIndex, lineCompletions } from "../completions";
 
 const project = createDemoProject("26.3");
@@ -44,5 +45,26 @@ describe("completions", () => {
   });
   it("does not complete inside comments", () => {
     expect(lineCompletions("# score", index)).toBeNull();
+  });
+});
+
+describe("trigger completion", () => {
+  it("only suggests triggers enabled for the player", () => {
+    const version = getVersion("26.3");
+    const world = new World({ version, seedPlayer: true, playerName: "Dev" });
+    world.addObjective("reward", "trigger");
+    world.addObjective("points", "dummy");
+    world.setTriggerEnabled(world.player()!, "reward", true);
+    const live = buildCompletionIndex(project, version, world);
+    const triggerLabels = (text: string) =>
+      lineCompletions(text, live)?.options.map((option) => option.label) ?? [];
+
+    expect(triggerLabels("trigger ")).toContain("reward");
+    expect(triggerLabels("trigger ")).not.toContain("points");
+
+    world.setTriggerEnabled(world.player()!, "reward", false);
+    const disabled = buildCompletionIndex(project, version, world);
+    const disabledLabels = lineCompletions("trigger ", disabled)?.options.map((option) => option.label) ?? [];
+    expect(disabledLabels).not.toContain("reward");
   });
 });
