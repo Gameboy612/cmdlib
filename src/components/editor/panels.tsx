@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useActiveWorkspace, useWorkbench, useSimRevision } from "@/lib/state/workbench";
+import { useActiveWorkspace, useCompletionIndex, useWorkbench, useSimRevision } from "@/lib/state/workbench";
 import { WorldView } from "@/components/preview/WorldView";
 import { CodeEditor } from "./CodeEditor";
 import { NbtTree } from "./NbtTree";
@@ -28,6 +28,8 @@ import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
 import type { DockviewPanelApi } from "dockview";
 import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/components/ui/ContextMenu";
+import { lineCompletions } from "@/lib/editor/completions";
+import type { Completion } from "@codemirror/autocomplete";
 
 /* ------------------------------------------------------------------ */
 /* Shared                                                             */
@@ -853,19 +855,57 @@ export function ConsolePanel() {
   const runCommand = useWorkbench((state) => state.runCommand);
   const clearConsole = useWorkbench((state) => state.clearConsole);
   const recent = useWorkbench((state) => state.recentCommands);
+  const completionIndex = useCompletionIndex();
   const [value, setValue] = useState("");
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [suggestions, setSuggestions] = useState<{
+    from: number;
+    options: Completion[];
+    selected: number;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const element = scrollRef.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [revision, world.logs.length]);
 
+  const updateSuggestions = (next: string, caret: number) => {
+    const result = lineCompletions(next.slice(0, caret), completionIndex);
+    if (!result || result.options.length === 0) {
+      setSuggestions(null);
+      return;
+    }
+    const typed = next.slice(0, caret).match(/(?:^|\s)(\S*)$/)?.[1]?.toLowerCase() ?? "";
+    const matching = typed
+      ? result.options.filter((option) =>
+          option.label.toLowerCase().startsWith(typed),
+        )
+      : result.options;
+    const options = (matching.length > 0 ? matching : result.options).slice(0, 10);
+    setSuggestions({ from: result.from, options, selected: 0 });
+  };
+
+  const applySuggestion = (option: Completion) => {
+    if (!suggestions) return;
+    const caret = inputRef.current?.selectionStart ?? value.length;
+    const next = `${value.slice(0, suggestions.from)}${option.label}${value.slice(caret)}`;
+    const caretAfter = suggestions.from + option.label.length;
+    setValue(next);
+    setSuggestions(null);
+    setHistoryIndex(-1);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(caretAfter, caretAfter);
+    });
+  };
+
   const submit = (event?: React.FormEvent) => {
     event?.preventDefault();
     const command = value.trim();
     if (!command) return;
+    setSuggestions(null);
     runCommand(command);
     setValue("");
     setHistoryIndex(-1);
@@ -876,9 +916,11 @@ export function ConsolePanel() {
     const next = Math.max(0, Math.min(recent.length - 1, historyIndex + direction));
     setHistoryIndex(next);
     setValue(recent[next] ?? "");
+    setSuggestions(null);
   };
 
   const logs = world.logs;
+  const completionOpen = !!suggestions && suggestions.options.length > 0;
 
   return (
     <div className={`${styles.panel} ${styles.consolePanel}`}>
@@ -887,7 +929,7 @@ export function ConsolePanel() {
           {logs.length === 0 && (
             <div className={styles.consoleWelcome}>
               <span>cmdlib console · {sim.version.id}</span>
-              <p>Type a Minecraft command below.</p>
+              <p>Type a Minecraft command below. Tab autocompletes.</p>
             </div>
           )}
           {logs.map((entry) => (
@@ -909,28 +951,83 @@ export function ConsolePanel() {
             </div>
           ))}
         </div>
-        <form className={styles.consoleForm} onSubmit={submit}>
-          <span className={styles.consolePrompt}>/</span>
-          <input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowUp") {
-                event.preventDefault();
-                history(-1);
-              } else if (event.key === "ArrowDown") {
-                event.preventDefault();
-                history(1);
-              }
-            }}
-            placeholder="say hello"
-            spellCheck={false}
-            aria-label="Minecraft command"
-            autoComplete="off"
-          />
-          <button type="submit" className={styles.consoleRun}>Run</button>
-          <button type="button" className={styles.consoleClear} onClick={clearConsole}>clear</button>
-        </form>
+        <div className={styles.consoleInputWrap}>
+          {completionOpen && suggestions && (
+            <div className={styles.consoleSuggest} role="listbox" aria-label="Command suggestions">
+              {suggestions.options.map((option, index) => (
+                <button
+                  key={`${option.label}-${index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={index === suggestions.selected}
+                  className={`${styles.consoleSuggestion} ${index === suggestions.selected ? styles.consoleSuggestionActive : ""}`}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() =>
+                    setSuggestions((current) =>
+                      current ? { ...current, selected: index } : current,
+                    )
+                  }
+                  onClick={() => applySuggestion(option)}
+                >
+                  <span>{option.label}</span>
+                  {option.detail && <em>{option.detail}</em>}
+                </button>
+              ))}
+            </div>
+          )}
+          <form className={styles.consoleForm} onSubmit={submit}>
+            <span className={styles.consolePrompt}>/</span>
+            <input
+              ref={inputRef}
+              value={value}
+              onChange={(event) => {
+                const next = event.target.value;
+                setValue(next);
+                setHistoryIndex(-1);
+                updateSuggestions(next, event.target.selectionStart ?? next.length);
+              }}
+              onKeyDown={(event) => {
+                if (completionOpen && suggestions) {
+                  if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                    event.preventDefault();
+                    const delta = event.key === "ArrowUp" ? -1 : 1;
+                    setSuggestions({
+                      ...suggestions,
+                      selected:
+                        (suggestions.selected + delta + suggestions.options.length) %
+                        suggestions.options.length,
+                    });
+                    return;
+                  }
+                  if (event.key === "Tab") {
+                    event.preventDefault();
+                    applySuggestion(suggestions.options[suggestions.selected]);
+                    return;
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setSuggestions(null);
+                    return;
+                  }
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  history(-1);
+                } else if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  history(1);
+                }
+              }}
+              placeholder="say hello"
+              spellCheck={false}
+              aria-label="Minecraft command"
+              aria-autocomplete="list"
+              autoComplete="off"
+            />
+            <button type="submit" className={styles.consoleRun}>Run</button>
+            <button type="button" className={styles.consoleClear} onClick={clearConsole}>clear</button>
+          </form>
+        </div>
       </div>
     </div>
   );

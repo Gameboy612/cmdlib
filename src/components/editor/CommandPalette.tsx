@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useWorkbench } from "@/lib/state/workbench";
+import { functionPathOf, useWorkbench } from "@/lib/state/workbench";
 import { PANEL_LABELS, PANEL_ORDER } from "./panel-meta";
 import { VERSIONS } from "@/lib/mc/version";
 import styles from "./editor.module.css";
@@ -60,6 +60,19 @@ export function CommandPalette() {
         keywords: "open edit function",
         run: () => state.openFile(path),
       });
+      const functionId = path.endsWith(".mcfunction")
+        ? functionPathOf(path, state.project.versionId)
+        : null;
+      if (functionId) {
+        base.push({
+          id: `function-${functionId}`,
+          label: functionId,
+          hint: path,
+          group: "Functions",
+          keywords: "open function jump file",
+          run: () => state.openFile(path),
+        });
+      }
     }
     for (const version of VERSIONS.slice(0, 6)) {
       base.push({

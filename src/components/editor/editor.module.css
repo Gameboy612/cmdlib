@@ -748,6 +748,36 @@
 .log_system .logText { color: var(--faint); font-style: italic; }
 .log_chat .logText { color: #e2ddd2; }
 .log_actionbar .logText { color: var(--gold); }
+.consoleInputWrap { position: relative; flex: none; }
+.consoleSuggest {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 4px);
+  z-index: 20;
+  max-height: 172px;
+  overflow: auto;
+  padding: 3px;
+  border: 1px solid #2a3139;
+  border-radius: 5px;
+  background: #11161b;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+}
+.consoleSuggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 7px;
+  border-radius: 3px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-align: left;
+}
+.consoleSuggestion em { color: var(--faint); font-size: 7px; font-style: normal; }
+.consoleSuggestionActive, .consoleSuggestion:hover { background: rgba(255, 122, 69, 0.12); color: var(--text); }
 .consoleForm {
   flex: none;
   display: flex;

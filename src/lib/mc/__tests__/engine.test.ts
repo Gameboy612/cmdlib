@@ -226,3 +226,17 @@ describe("unsupported command handling", () => {
     ).toBe(true);
   });
 });
+
+describe("unset scores in execute if", () => {
+  it("treats two unset scores as equal", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/unset.mcfunction"] = [
+      "scoreboard objectives add Score dummy",
+      "execute if score player Score = player Score run say PASS",
+    ].join("\n");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("function cmdlib:unset");
+    expect(sim.world.logs.some((entry) => entry.text.includes("PASS"))).toBe(true);
+  });
+});

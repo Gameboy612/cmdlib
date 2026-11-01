@@ -63,20 +63,21 @@ Open `/editor/`. The starter pack is already loaded:
 4. Type a command in the console, for example `say hello`.
 5. The command palette is the **cmdlib mark + K** button, or
    `Ctrl/Cmd + K`.
-6. `Ctrl/Cmd + Space` opens autocomplete. `Tab` accepts the active suggestion.
-7. Right-click a file or folder for **Open / Run function / Rename / Duplicate /
+6. `Ctrl/Cmd + Space` opens editor autocomplete; `Tab` accepts the active suggestion. The console has its own **Tab autocomplete** for commands, selectors, objectives, functions, storage and NBT paths.
+7. In the command palette (`Ctrl/Cmd + K`), type a function id such as `cmdlib:stats` to jump straight to its file.
+8. Right-click a file or folder for **Open / Run function / Rename / Duplicate /
    Delete / Copy path**; right-click a dock tab for close/float/maximize;
    right-click an entity in the preview for **Inspect / Teleport / Copy NBT**.
    Right-drag the preview to rotate it.
-8. Create, rename and delete files inline in the Explorer — no browser dialogs —
+9. Create, rename and delete files inline in the Explorer — no browser dialogs —
    and drag files between folders to move them. Multiple files stay open in the
    editor tab strip; closing all leaves the Code panel open.
-9. **File → Preferences** records custom keybindings. **View** ticks panels that
+10. **File → Preferences** records custom keybindings. **View** ticks panels that
    are already open.
-10. New packs are added beside the current pack, not instead of it. **+ tag**
+11. New packs are added beside the current pack, not instead of it. **+ tag**
     creates function, item, block, entity type, fluid or game event tags;
     **File → New predicate** scaffolds a predicate JSON file.
-11. Scores are clamped to Minecraft's signed 32-bit range
+12. Scores are clamped to Minecraft's signed 32-bit range
     (`-2,147,483,648 … 2,147,483,647`) and list 50 holders per page.
 
 ![Right-click context menu on a preview entity](docs/screenshots/context-menu.png)
