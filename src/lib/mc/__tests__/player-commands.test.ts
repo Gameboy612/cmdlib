@@ -121,6 +121,32 @@ describe("/give and /clear", () => {
   });
 });
 
+describe("/spectate", () => {
+  it("sets the player's spectate target to any entity", () => {
+    const sim = newSim();
+    sim.runCommand('summon zombie 0 64 0 {Tags:["spectate-me"]}');
+    const zombie = sim.world.entities.find((entity) => entity.type === "minecraft:zombie")!;
+    const outcome = sim.runCommand("spectate @e[tag=spectate-me,limit=1]");
+    expect(outcome.ok).toBe(true);
+    expect(sim.world.spectatorTarget()).toBe(zombie.uuid);
+  });
+
+  it("accepts the command in the linter", () => {
+    const project = pack({
+      "data/test/function/spectate.mcfunction": [
+        "summon zombie 0 64 0 {Tags:[\"view\"]}",
+        "spectate @e[type=zombie,limit=1]",
+      ].join("\n"),
+    });
+    const report = lintProject(project);
+    expect(
+      report.diagnostics.filter(
+        (entry) => entry.path.endsWith("spectate.mcfunction") && entry.severity === "error",
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("/effect", () => {
   it("stores duration in ticks, decrements it on tick and expires effects", () => {
     const sim = newSim();
@@ -141,6 +167,23 @@ describe("/effect", () => {
 
     sim.tick();
     expect(sim.world.effectsOf()).toHaveLength(0);
+  });
+
+  it("applies and clears effects on non-player entities", () => {
+    const sim = newSim();
+    sim.runCommand('summon zombie 0 64 0 {Tags:["fx"]}');
+    const zombie = sim.world.entities.find(
+      (entity) => !entity.isPlayer && entity.type === "minecraft:zombie",
+    );
+    expect(zombie).toBeTruthy();
+    const outcome = sim.runCommand(
+      "effect give @e[tag=fx,limit=1] speed 5 1",
+    );
+    expect(outcome.ok).toBe(true);
+    expect(sim.world.effectsOf(zombie!)).toHaveLength(1);
+    expect(sim.world.effectsOf(zombie!)[0].id).toBe("minecraft:speed");
+    sim.runCommand("effect clear @e[tag=fx,limit=1] speed");
+    expect(sim.world.effectsOf(zombie!)).toHaveLength(0);
   });
 
   it("uses the 30 second default and removes effects on request", () => {

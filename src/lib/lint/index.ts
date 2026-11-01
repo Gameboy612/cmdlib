@@ -12,6 +12,15 @@ import type { CommandContext, Runtime } from "../mc/commands/context";
 import { CommandError } from "../mc/cursor";
 import { COMMANDS, ENTITY_BY_ID } from "../mc/data";
 import { Tag } from "../mc/nbt";
+import {
+  canonicalId,
+  collectPredicateConditionTypes,
+  collectPredicateReferences,
+  findPredicateCycles,
+  isSupportedPredicateCondition,
+  parsePredicateFiles,
+  type PredicateDefinition,
+} from "../mc/predicates";
 
 export type LintSeverity = "error" | "warning" | "info" | "hint";
 
@@ -122,6 +131,12 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
   const world = new World({ version, seedPlayer: true, playerName: "Dev" });
   world.setFunctions(parsed.functions);
   world.setFunctionTags(parsed.tags);
+  const parsedPredicates = parsePredicateFiles(project.files);
+  world.setPredicates(parsedPredicates.predicates);
+  for (const error of parsedPredicates.errors) {
+    reportPredicateFileIssue(project, error.path, error.message, error.code, "error", report);
+  }
+  lintPredicates(project, parsedPredicates.predicates, report);
   lintRuntime.world = world;
 
   const declaredObjectives = new Map<string, { criterion: string; displayName?: string }>();
@@ -414,6 +429,112 @@ function normalizeFormat(value: unknown): [number, number] | null {
     return [value[0], typeof value[1] === "number" ? value[1] : 0];
   }
   return null;
+}
+
+/* ----------------------------- predicates ------------------------------- */
+
+function lintPredicates(
+  project: Project,
+  predicates: Map<string, PredicateDefinition>,
+  report: (d: Omit<Diagnostic, "id" | "source">) => void,
+): void {
+  for (const definition of predicates.values()) {
+    const reportedTypes = new Set<string>();
+    for (const type of collectPredicateConditionTypes(definition.data)) {
+      if (isSupportedPredicateCondition(type) || reportedTypes.has(type)) continue;
+      reportedTypes.add(type);
+      reportPredicateFileIssue(
+        project,
+        definition.path,
+        `Predicate condition '${type}' is not simulated by cmdlib and will evaluate to false.`,
+        "unsupported-predicate-condition",
+        "warning",
+        report,
+      );
+    }
+
+    const reportedRefs = new Set<string>();
+    for (const reference of collectPredicateReferences(definition.data)) {
+      const canonical = canonicalId(reference);
+      if (reportedRefs.has(canonical)) continue;
+      reportedRefs.add(canonical);
+      if (!isValidPredicateReference(canonical)) {
+        reportPredicateFileIssue(
+          project,
+          definition.path,
+          `Invalid predicate reference '${reference}'. Use a lower-case resource location.`,
+          "invalid-predicate-reference",
+          "error",
+          report,
+        );
+        continue;
+      }
+      if (!predicates.has(canonical)) {
+        reportPredicateFileIssue(
+          project,
+          definition.path,
+          `Predicate '${definition.id}' references unknown predicate '${canonical}'.`,
+          "unknown-predicate",
+          "error",
+          report,
+        );
+      }
+    }
+  }
+
+  const reportedCycles = new Set<string>();
+  for (const cycle of findPredicateCycles(predicates)) {
+    for (const id of cycle.slice(0, -1)) {
+      if (reportedCycles.has(id)) continue;
+      reportedCycles.add(id);
+      const definition = predicates.get(id);
+      if (!definition) continue;
+      reportPredicateFileIssue(
+        project,
+        definition.path,
+        `Predicate '${id}' includes itself, directly or indirectly.`,
+        "predicate-cycle",
+        "error",
+        report,
+      );
+    }
+  }
+}
+
+function isValidPredicateReference(id: string): boolean {
+  const [namespace, path, ...rest] = id.split(":");
+  if (rest.length > 0 || !namespace || !path) return false;
+  return (
+    /^[a-z0-9_.-]+$/.test(namespace) &&
+    /^[a-z0-9_./-]+$/.test(path) &&
+    !path.startsWith("/") &&
+    !path.endsWith("/") &&
+    !path.includes("//")
+  );
+}
+
+function reportPredicateFileIssue(
+  project: Project,
+  path: string,
+  message: string,
+  code: string,
+  severity: LintSeverity,
+  report: (d: Omit<Diagnostic, "id" | "source">) => void,
+): void {
+  const content = project.files[path] ?? "";
+  const firstLine = content.split(/\r?\n/)[0] ?? "";
+  report({
+    path,
+    severity,
+    code,
+    message,
+    line: 1,
+    column: 1,
+    endLine: 1,
+    endColumn: Math.max(1, firstLine.length),
+    from: 0,
+    to: Math.max(1, content.length),
+  });
 }
 
 /* ------------------------------- tag checks ------------------------------ */
@@ -886,4 +1007,11 @@ export const LINT_CODES: Record<string, string> = {
   "unused-function": "The function is not referenced by a tag or another function.",
   "undisplayed-objective": "The objective is declared but not displayed or read.",
   "tag-cycle": "A function tag includes itself.",
+  "invalid-predicate-id": "A predicate file's namespace or path is not a valid resource location.",
+  "invalid-predicate-json": "A predicate file is not valid JSON (or has a non-object condition).",
+  "missing-condition": "A predicate file does not contain a 'condition' field.",
+  "invalid-predicate-reference": "A predicate reference is not a valid resource location.",
+  "unknown-predicate": "No predicate with that resource location exists in the pack.",
+  "predicate-cycle": "A predicate references itself, directly or indirectly.",
+  "unsupported-predicate-condition": "The predicate condition type is not simulated and evaluates to false.",
 };

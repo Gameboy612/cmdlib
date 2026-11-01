@@ -47,6 +47,8 @@ export interface PlayerState {
   inventory: InventoryItem[];
   /** Objective names this holder may currently `/trigger`. */
   enabledTriggers: Set<string>;
+  /** Entity UUID currently being spectated, if any. */
+  spectating?: string;
 }
 
 export function createPlayerState(gameMode: GameMode = "survival"): PlayerState {

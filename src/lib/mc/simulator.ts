@@ -6,6 +6,7 @@ import { CommandError, Cursor } from "./cursor";
 import { executeCommandLine, makeContext, ReturnSignal } from "./commands/context";
 import type { CommandContext, CommandResult, Runtime } from "./commands/context";
 import { parseDatapack, type Project } from "./datapack";
+import { parsePredicateFiles } from "./predicates";
 import { getVersion, type VersionProfile } from "./version";
 import { macroValueToString } from "./commands/function";
 import { HANDLERS } from "./commands";
@@ -97,11 +98,12 @@ export class Simulator implements Runtime {
     this.touch();
   }
 
-  /** Re-read functions and tags without destroying world state. */
+  /** Re-read functions, tags and predicates without destroying world state. */
   syncFunctions(): void {
     const parsed = parseDatapack(this.project.files, this.version);
     this.world.setFunctions(parsed.functions);
     this.world.setFunctionTags(parsed.tags);
+    this.world.setPredicates(parsePredicateFiles(this.project.files).predicates);
   }
 
   /** Build a new world, load the pack, and run its load tags. */

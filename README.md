@@ -47,9 +47,9 @@ path as well.
 
 Open `/projects/`. A project groups one or more datapacks (packs); files stay in
 the browser. You can create, rename and delete projects (including from a
-right-click menu), add packs to a project, import a `.zip` datapack as a new
-project, or paste a public GitHub repository/folder URL and import every
-datapack it contains.
+right-click menu), add packs to a project, import a `.zip` project (which may
+contain one or more datapacks), or paste a public GitHub repository/folder URL
+and import every datapack it contains.
 
 ## Editor
 
@@ -74,7 +74,8 @@ Open `/editor/`. The starter pack is already loaded:
 9. **File → Preferences** records custom keybindings. **View** ticks panels that
    are already open.
 10. New packs are added beside the current pack, not instead of it. **+ tag**
-    creates function, item, block, entity type, fluid or game event tags.
+    creates function, item, block, entity type, fluid or game event tags;
+    **File → New predicate** scaffolds a predicate JSON file.
 11. Scores are clamped to Minecraft's signed 32-bit range
     (`-2,147,483,648 … 2,147,483,647`) and list 50 holders per page.
 
@@ -99,7 +100,8 @@ datapack `.zip`; **File → Import** reads one back.
 | Storage | `data storage` namespaces | Live storage inspector and NBT tree |
 | Execute | `as`, `at`, `positioned`, `align`, `rotated`, `facing`, `in`, `anchored`, `if`/`unless`, `store`, `run` | `if score`, `if entity`, `if block`, `if data`, `if dimension`, `if loaded`; eyes/feet anchors |
 | Entities | `summon`, `kill`, `teleport`/`tp`, `tag` | Static objects with position + NBT; **no AI and no physics** |
-| Player state | `gamemode`, `give`, `clear`, `effect give/clear`, `scoreboard players enable`, `trigger` | Simulated game mode, inventory, effect durations and trigger objectives; no visual behaviour |
+| Player state | `gamemode`, `give`, `clear`, `effect give/clear`, `scoreboard players enable`, `trigger`, `spectate` | Simulated game mode, inventory, effect durations, trigger objectives and spectate targets; effects work on any entity |
+| Predicates | `execute if predicate`, `execute unless predicate` | `data/<ns>/predicate/*.json`; references, all_of/any_of, entity/location/score/time/value/random conditions |
 | Chat | `say`, `tellraw`, `me` | Rendered with Minecraft colour codes and component styles |
 | Scheduling | `schedule function`, `schedule clear` | Tick queue driven by the Timeline; `t`/`s`/`d` durations |
 | Misc | `return`, `return run`, `setblock`, `reload` | `return` stops a function with a value |

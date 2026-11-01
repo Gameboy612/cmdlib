@@ -55,6 +55,38 @@ function resolvePlayers(
   return players;
 }
 
+function resolveEffectTargets(
+  cursor: Cursor,
+  ctx: CommandContext,
+  raw: string,
+  start: number,
+): EntityData[] {
+  let entities: EntityData[];
+  try {
+    entities = resolveEntityTargets(ctx.world, raw, {
+      source: ctx.source,
+      origin: ctx.pos,
+      lenient: ctx.lint,
+    });
+  } catch (error) {
+    if (error instanceof SelectorError) {
+      cursor.error(error.message, start, "selector");
+    }
+    throw error;
+  }
+  if (entities.length === 0 && !ctx.lint) {
+    cursor.error(`No entity was found matching '${raw}'`, start, "entity-target");
+  }
+  return entities;
+}
+
+function entityLabel(ctx: CommandContext, entities: EntityData[]): string {
+  if (entities.length === 1) {
+    return ctx.world.holderDisplayName(holderName(entities[0]));
+  }
+  return `${entities.length} entities`;
+}
+
 function playerLabel(ctx: CommandContext, players: EntityData[]): string {
   if (players.length === 1) {
     return ctx.world.holderDisplayName(holderName(players[0]));
@@ -288,10 +320,10 @@ function giveEffect(cursor: Cursor, ctx: CommandContext): CommandResult {
     }
   }
 
-  const players = resolvePlayers(cursor, ctx, raw, targetsStart);
+  const targets = resolveEffectTargets(cursor, ctx, raw, targetsStart);
   if (!ctx.lint) {
-    for (const player of players) {
-      ctx.world.applyStatusEffect(player, {
+    for (const target of targets) {
+      ctx.world.applyStatusEffect(target, {
         id: effectId,
         amplifier,
         durationTicks: seconds * TICKS_PER_SECOND,
@@ -302,9 +334,9 @@ function giveEffect(cursor: Cursor, ctx: CommandContext): CommandResult {
   feedback(
     ctx,
     "success",
-    `Applied ${effectId} (${seconds}s, amplifier ${amplifier}) to ${playerLabel(ctx, players)}`,
+    `Applied ${effectId} (${seconds}s, amplifier ${amplifier}) to ${entityLabel(ctx, targets)}`,
   );
-  return { result: players.length, success: true };
+  return { result: targets.length, success: true };
 }
 
 function clearEffect(cursor: Cursor, ctx: CommandContext): CommandResult {
@@ -312,23 +344,53 @@ function clearEffect(cursor: Cursor, ctx: CommandContext): CommandResult {
   const raw = cursor.readTargetsRaw().raw;
   let effectId: string | undefined;
   if (!cursor.done()) effectId = readEffectId(cursor);
-  const players = resolvePlayers(cursor, ctx, raw, targetsStart);
+  const targets = resolveEffectTargets(cursor, ctx, raw, targetsStart);
 
   let removed = 0;
   if (!ctx.lint) {
-    for (const player of players) {
-      removed += ctx.world.clearStatusEffects(player, effectId);
+    for (const target of targets) {
+      removed += ctx.world.clearStatusEffects(target, effectId);
     }
   }
   feedback(
     ctx,
     "success",
     effectId
-      ? `Removed ${removed} '${effectId}' effect(s) from ${playerLabel(ctx, players)}`
-      : `Removed ${removed} effect(s) from ${playerLabel(ctx, players)}`,
+      ? `Removed ${removed} '${effectId}' effect(s) from ${entityLabel(ctx, targets)}`
+      : `Removed ${removed} effect(s) from ${entityLabel(ctx, targets)}`,
   );
   return { result: removed, success: true };
 }
+
+/* ------------------------------- /spectate ------------------------------ */
+
+export const spectateHandler: Handler = (cursor, ctx) => {
+  const targetStart = cursor.mark();
+  const targetRaw = cursor.readTargetsRaw().raw;
+  const targets = resolveEffectTargets(cursor, ctx, targetRaw, targetStart);
+  if (targets.length !== 1) {
+    cursor.error(
+      `Expected exactly one entity to spectate, got ${targets.length}`,
+      targetStart,
+      "spectate-target",
+    );
+    return { result: 0, success: false };
+  }
+  const viewerStart = cursor.mark();
+  const viewerRaw = cursor.done() ? "@s" : cursor.readTargetsRaw().raw;
+  const viewers = resolvePlayers(cursor, ctx, viewerRaw, viewerStart);
+  if (!ctx.lint) {
+    for (const viewer of viewers) {
+      ctx.world.setSpectatorTarget(viewer, targets[0].uuid);
+    }
+  }
+  feedback(
+    ctx,
+    "success",
+    `Made ${playerLabel(ctx, viewers)} spectate ${entityLabel(ctx, targets)}`,
+  );
+  return { result: viewers.length, success: true };
+};
 
 /* -------------------------------- /trigger ------------------------------ */
 

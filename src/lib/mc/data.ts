@@ -399,8 +399,24 @@ export const COMMANDS: Record<string, CommandSpec> = {
       rotated: { name: "rotated", summary: "Set the command rotation.", category: "server", supported: true, args: [arg("rotation", "rotation")] },
       facing: { name: "facing", summary: "Face a position or entity.", category: "server", supported: true, args: [arg("target", "coordinates")] },
       in: { name: "in", summary: "Switch dimension.", category: "server", supported: false, args: [arg("dimension", "word")] },
-      if: { name: "if", summary: "Run only if a condition is true.", category: "server", supported: true, children: {} },
-      unless: { name: "unless", summary: "Run only if a condition is false.", category: "server", supported: true, children: {} },
+      if: {
+        name: "if",
+        summary: "Run only if a condition is true.",
+        category: "server",
+        supported: true,
+        children: {
+          predicate: { name: "predicate", summary: "Test a datapack predicate by resource location.", category: "server", supported: true, args: [arg("predicate", "word", "Predicate id, e.g. cmdlib:is_hungry.")] },
+        },
+      },
+      unless: {
+        name: "unless",
+        summary: "Run only if a condition is false.",
+        category: "server",
+        supported: true,
+        children: {
+          predicate: { name: "predicate", summary: "Test a datapack predicate by resource location.", category: "server", supported: true, args: [arg("predicate", "word", "Predicate id, e.g. cmdlib:is_hungry.")] },
+        },
+      },
       store: { name: "store", summary: "Store the result or success value.", category: "server", supported: true, children: {} },
       run: { name: "run", summary: "The command to run.", category: "server", supported: true, args: [arg("command", "greedy")] },
     },
@@ -565,6 +581,17 @@ export const COMMANDS: Record<string, CommandSpec> = {
     args: [
       arg("mode", "enum", "survival, creative, adventure or spectator."),
       arg("targets", "targets", "Players to update. Defaults to @s.", true),
+    ],
+  },
+  spectate: {
+    name: "spectate",
+    summary: "Make a player spectate an entity.",
+    category: "player",
+    supported: true,
+    usage: "/spectate <target> [<player>]",
+    args: [
+      arg("target", "targets", "Entity to spectate. Must match exactly one entity."),
+      arg("player", "targets", "Player whose camera changes. Defaults to @s.", true),
     ],
   },
   trigger: {

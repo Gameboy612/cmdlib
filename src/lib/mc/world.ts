@@ -28,6 +28,7 @@ import {
   PlayerState,
   StatusEffect,
 } from "./player";
+import type { PredicateDefinition } from "./predicates";
 
 export interface Objective {
   name: string;
@@ -135,6 +136,8 @@ export class World {
   holderNames = new Map<string, string>();
   functions = new Map<string, FunctionDef>();
   functionTags = new Map<string, FunctionTag>();
+  /** Datapack predicates, keyed by resource location. */
+  predicates = new Map<string, PredicateDefinition>();
   blocks = new Map<string, string>();
   logs: WorldLogEntry[] = [];
   titles: TitleState = {
@@ -393,6 +396,19 @@ export class World {
     return this.playerState(target)?.enabledTriggers.has(objective) ?? false;
   }
 
+  spectatorTarget(target?: EntityData | string | null): string | undefined {
+    return this.playerState(target)?.spectating;
+  }
+
+  setSpectatorTarget(
+    target: EntityData | string | null,
+    entityUuid: string | null,
+  ): void {
+    const state = this.ensurePlayerState(target);
+    if (entityUuid) state.spectating = entityUuid;
+    else delete state.spectating;
+  }
+
   private ensurePlayerState(target?: EntityData | string | null): PlayerState {
     const key = this.runtimeKey(target);
     let state = this.playerStates.get(key);
@@ -591,6 +607,29 @@ export class World {
     return this.functionTags.get(id);
   }
 
+  /* ----------------------------- predicates --------------------------- */
+
+  setPredicates(
+    predicates:
+      | Iterable<PredicateDefinition>
+      | Map<string, PredicateDefinition>,
+  ): void {
+    this.predicates.clear();
+    const values =
+      predicates instanceof Map ? predicates.values() : predicates;
+    for (const definition of values) {
+      this.predicates.set(normalizePredicateId(definition.id), definition);
+    }
+  }
+
+  getPredicate(id: string): PredicateDefinition | undefined {
+    return this.predicates.get(normalizePredicateId(id));
+  }
+
+  predicateIds(): string[] {
+    return [...this.predicates.keys()];
+  }
+
   /* ------------------------------ schedule ---------------------------- */
 
   /**
@@ -764,6 +803,10 @@ export function makeWorld(versionId: string, playerPos?: Vec3): World {
 
 export function readNumber(tag: NbtTag | undefined, fallback = 0): number {
   return numericValue(tag) ?? fallback;
+}
+
+function normalizePredicateId(id: string): string {
+  return id.includes(":") ? id : `minecraft:${id}`;
 }
 
 export { entityPos, parseSnbt, SelectorError };

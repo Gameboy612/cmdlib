@@ -16,7 +16,7 @@ import { Simulator } from "../mc/simulator";
 import { buildCompletionIndex, type CompletionIndex } from "../editor/completions";
 import { lintProject, type LintQuickFix, type LintReport } from "../lint";
 import { buildPackMeta, functionPath, getVersion, migrateFiles } from "../mc/version";
-import { downloadProject, readProjectZip } from "../io";
+import { downloadProject, readProjectArchive, readProjectZip } from "../io";
 import { importGithubDatapacks } from "../github";
 
 const PROJECTS_KEY = "cmdlib:projects:v1";
@@ -27,7 +27,7 @@ const HISTORY_KEY = "cmdlib:history:v1";
 export type MobilePanel = "editor" | "preview" | "console" | "explorer" | "problems" | "timeline";
 
 export interface ExplorerCreateRequest {
-  kind: "file" | "function" | "tag";
+  kind: "file" | "function" | "tag" | "predicate";
   folder?: string;
   tagKind?: string;
   nonce: number;
@@ -725,30 +725,34 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   },
 
   importProjectZip: async (file) => {
-    const imported = await readProjectZip(file);
-    const pack: Project = {
+    const imported = await readProjectArchive(file);
+    const packs: Project[] = imported.packs.map((entry) => ({
       id: newId("pack"),
-      name: imported.name,
-      versionId: imported.versionId,
-      files: imported.files,
+      name: entry.name,
+      versionId: entry.versionId,
+      files: entry.files,
       activePath:
-        Object.keys(imported.files).find((path) => path.endsWith(".mcfunction")) ??
-        Object.keys(imported.files)[0] ??
+        Object.keys(entry.files).find((path) => path.endsWith(".mcfunction")) ??
+        Object.keys(entry.files)[0] ??
         "",
       updatedAt: Date.now(),
-    };
+    }));
+    if (packs.length === 0) throw new Error("The zip did not contain a datapack");
     const workspace: WorkspaceProject = {
       id: newId("project"),
       name: imported.name,
-      packs: [pack],
-      activePackId: pack.id,
+      packs,
+      activePackId: packs[0].id,
       updatedAt: Date.now(),
     };
     const projects = [...get().projects, workspace];
     set({ projects, activeProjectId: workspace.id });
-    get().selectPack(pack.id);
+    get().selectPack(packs[0].id);
     persistWorkspaces(projects, workspace.id);
-    get().showToast(`Imported project ${imported.name}`, "success");
+    get().showToast(
+      `Imported ${packs.length} pack${packs.length === 1 ? "" : "s"} into ${imported.name}`,
+      "success",
+    );
     return workspace.id;
   },
 

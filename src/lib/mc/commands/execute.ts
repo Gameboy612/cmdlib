@@ -8,6 +8,7 @@ import {
   SelectorError,
 } from "../selectors";
 import { entityPos, entityRotation, type EntityData } from "../entities";
+import { evaluatePredicate } from "../predicates";
 import { executeCommandLine } from "./context";
 import {
   CommandContext,
@@ -382,6 +383,21 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
       const id = cursor.readResourceLocation();
       return () => ctx.dimension === id;
     }
+    case "predicate": {
+      const idStart = cursor.mark();
+      const id = cursor.readResourceLocation();
+      if (ctx.lint && !ctx.world.getPredicate(id)) {
+        cursor.error(`Unknown predicate '${id}'`, idStart, "unknown-predicate");
+      }
+      return () => {
+        if (!ctx.world.getPredicate(id)) return false;
+        return evaluatePredicate(ctx.world, id, {
+          source: ctx.source,
+          pos: ctx.pos,
+          dimension: ctx.dimension,
+        });
+      };
+    }
     case "loaded": {
       cursor.readVec3(ctx.pos, ctx.rotation);
       return () => true;
@@ -396,7 +412,7 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
       break;
     default:
       cursor.error(
-        `Unknown condition '${kind}'. Expected entity, score, block, data, dimension or loaded.`,
+        `Unknown condition '${kind}'. Expected entity, score, block, data, dimension, loaded or predicate.`,
         start,
         "condition",
       );

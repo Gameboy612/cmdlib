@@ -98,6 +98,7 @@ export function MenuBar() {
         { label: "New pack", run: () => addPack() },
         { label: "New file", run: () => requestExplorerCreate({ kind: "file" }) },
         { label: "New function", run: () => requestExplorerCreate({ kind: "function" }) },
+        { label: "New predicate", run: () => requestExplorerCreate({ kind: "predicate" }) },
         { separator: true },
         { label: "Projects…", run: openProjects },
         { label: "Import pack…", run: () => importRef.current?.click() },

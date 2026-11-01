@@ -10,6 +10,7 @@ export * from "./world";
 export * from "./version";
 export * from "./tag-kinds";
 export * from "./datapack";
+export * from "./predicates";
 export * from "./cursor";
 export * from "./simulator";
 export * from "./commands/context";

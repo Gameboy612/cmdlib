@@ -108,7 +108,7 @@ function buildTree(files: Record<string, string>): TreeNode {
 }
 
 type ExplorerDraft =
-  | { mode: "create"; kind: "file" | "function" | "tag"; folder?: string; tagKind?: TagKind; value: string }
+  | { mode: "create"; kind: "file" | "function" | "tag" | "predicate"; folder?: string; tagKind?: TagKind; value: string }
   | { mode: "rename"; path: string; value: string }
   | { mode: "delete"; path: string };
 
@@ -177,7 +177,9 @@ export function ExplorerPanel() {
           ? "new_function"
           : explorerCreate.kind === "tag"
             ? "tick"
-            : `${explorerCreate.folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
+            : explorerCreate.kind === "predicate"
+              ? "new_predicate"
+              : `${explorerCreate.folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
     });
   }, [explorerCreate, activeNamespace, version.functionFolder]);
 
@@ -191,7 +193,7 @@ export function ExplorerPanel() {
   }, [draft]);
 
   const beginCreate = (
-    kind: "file" | "function" | "tag",
+    kind: "file" | "function" | "tag" | "predicate",
     folder?: string,
     tagKind: TagKind = "function",
   ) => {
@@ -213,7 +215,9 @@ export function ExplorerPanel() {
           ? "new_function"
           : kind === "tag"
             ? "tick"
-            : `${folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
+            : kind === "predicate"
+              ? "new_predicate"
+              : `${folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
     });
   };
 
@@ -305,6 +309,21 @@ export function ExplorerPanel() {
       }
       return;
     }
+    if (draft.kind === "predicate") {
+      const targetBase = draft.folder?.endsWith("/predicate")
+        ? draft.folder
+        : `data/${namespace}/predicate`;
+      const name = value
+        .replace(/\s+/g, "_")
+        .replace(/\.json$/, "");
+      const template = JSON.stringify(
+        { condition: "random_chance", chance: 0.5 },
+        null,
+        2,
+      );
+      if (createFile(`${targetBase}/${name}.json`, `${template}\n`)) setDraft(null);
+      return;
+    }
     if (draft.kind === "tag") {
       const tagKind = draft.tagKind ?? "function";
       const tagFolder = tagFolderFor(tagKind, version);
@@ -367,6 +386,9 @@ export function ExplorerPanel() {
       ...(isTagFolder
         ? [{ label: "New tag…", onSelect: () => addTag(path) }]
         : []),
+      ...(path.endsWith("/predicate")
+        ? [{ label: "New predicate…", onSelect: () => beginCreate("predicate", path) }]
+        : []),
       { separator: true },
       {
         label: collapsed.has(path) ? "Expand" : "Collapse",
@@ -383,7 +405,13 @@ export function ExplorerPanel() {
   const renderDraftRow = (folder: string | undefined, depth: number) => {
     if (!draft || draft.mode !== "create" || draft.folder !== folder) return null;
     const label =
-      draft.kind === "function" ? "ƒ function" : draft.kind === "tag" ? "# tag" : "{} file";
+      draft.kind === "function"
+        ? "ƒ function"
+        : draft.kind === "tag"
+          ? "# tag"
+          : draft.kind === "predicate"
+            ? "◇ predicate"
+            : "{} file";
     return (
       <div className={`${styles.draftRow} ${styles.draftCreate}`} style={{ paddingLeft: 8 + depth * 13 }}>
         <span className={styles.draftBadge}>{label}</span>
@@ -606,6 +634,7 @@ export function ExplorerPanel() {
             { label: "New function…", onSelect: () => addFunction() },
             { label: "New file…", onSelect: () => addFile() },
             { label: "New tag…", onSelect: () => addTag() },
+            { label: "New predicate…", onSelect: () => beginCreate("predicate") },
           ])
         }
         onDragOver={(event) => {
@@ -1115,6 +1144,9 @@ export function EntitiesPanel() {
   const triggers = player
     ? [...(world.playerState(player)?.enabledTriggers ?? [])]
     : [];
+  const spectating = player ? world.spectatorTarget(player) : undefined;
+  const spectatedEntity = spectating ? world.entityByUuid(spectating) : undefined;
+  const selectedEffects = entity ? world.effectsOf(entity) : [];
 
   return (
     <div className={`${styles.panel} ${styles.entitiesPanel}`}>
@@ -1148,7 +1180,7 @@ export function EntitiesPanel() {
               <span className={styles.playerRuntimeMuted}>+{inventory.length - 8} more</span>
             )}
           </div>
-          {(effects.length > 0 || triggers.length > 0) && (
+          {(effects.length > 0 || triggers.length > 0 || !!spectatedEntity) && (
             <div className={styles.playerRuntimeLine}>
               <span className={styles.playerRuntimeLabel}>state</span>
               {effects.map((effect) => (
@@ -1162,6 +1194,11 @@ export function EntitiesPanel() {
                   trigger:{objective}
                 </span>
               ))}
+              {spectatedEntity && (
+                <span className={styles.playerChip}>
+                  spectating {entityCustomName(spectatedEntity)}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -1197,6 +1234,16 @@ export function EntitiesPanel() {
                 <span>{entityCustomName(entity)}</span>
                 <span className={styles.monoTag}>{entity.uuid.slice(0, 8)}</span>
               </div>
+              {selectedEffects.length > 0 && (
+                <div className={styles.entityEffects}>
+                  {selectedEffects.map((effect) => (
+                    <span key={effect.id} className={styles.playerChip}>
+                      {effect.id.replace("minecraft:", "")} {effect.amplifier + 1} ·{" "}
+                      {Math.ceil(effect.durationTicks / 20)}s
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className={styles.nbtScroll}>
                 <NbtTree tag={entity.nbt} defaultOpen={1} />
               </div>
