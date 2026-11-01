@@ -385,8 +385,20 @@ export class Simulator implements Runtime {
           continue;
         }
         if (error instanceof CommandError) {
-          error.message = `${error.message} (function ${id}, line ${i + 1})`;
-          throw error;
+          // Cycles and runaway recursion are structural failures, not ordinary
+          // command failures, so surface them to the tick/run result.
+          if (error.code === "tag-cycle" || error.code === "recursion") {
+            error.message = `${error.message} (function ${id}, line ${i + 1})`;
+            throw error;
+          }
+          // A failed command in a function does not abort the remaining
+          // lines in vanilla. Log it and keep going, like the real command
+          // dispatcher.
+          this.world.log(
+            "error",
+            `${error.message} (function ${id}, line ${i + 1})`,
+          );
+          continue;
         }
         throw error;
       }

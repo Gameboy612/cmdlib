@@ -50,7 +50,8 @@ function get(cursor: Cursor, ctx: CommandContext): CommandResult {
 
   if (!cursor.done()) {
     const firstStart = cursor.mark();
-    const first = cursor.readWord();
+    const first =
+      cursor.peek() === "{" ? cursor.readNbtPathText() : cursor.readWord();
     if (/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(first)) {
       scale = Number(first);
     } else {
@@ -163,7 +164,7 @@ function merge(cursor: Cursor, ctx: CommandContext): CommandResult {
 function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
   const source = readSource(cursor, ctx, true);
   const pathStart = cursor.mark();
-  const pathText = cursor.readWord();
+  const pathText = cursor.readNbtPathText();
   const path = parsePathSafe(cursor, pathText, pathStart);
 
   const modeStart = cursor.mark();
@@ -195,7 +196,7 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
         value = clone(fromSource.root);
       } else {
         const fromPathStart = cursor.mark();
-        const fromPathText = cursor.readWord();
+        const fromPathText = cursor.readNbtPathText();
         const fromPath = parsePathSafe(cursor, fromPathText, fromPathStart);
         const matches = resolvePath(fromSource.root, fromPath);
         if (matches.length !== 1) {
@@ -216,7 +217,7 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
     } else if (valueKind === "string") {
       const fromSource = readSource(cursor, ctx, false);
       const fromPathStart = cursor.mark();
-      const fromPathText = cursor.readWord();
+      const fromPathText = cursor.readNbtPathText();
       const fromPath = parsePathSafe(cursor, fromPathText, fromPathStart);
       const matches = resolvePath(fromSource.root, fromPath);
       const start = cursor.readInt().value;
@@ -241,7 +242,11 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
         value = Tag.string("");
       } else {
         const raw = matches[0].value.value;
-        value = Tag.string(raw.slice(Math.max(0, start), end === null ? undefined : Math.max(0, end)));
+        const at = (index: number) =>
+          index < 0
+            ? Math.max(0, raw.length + index)
+            : Math.min(raw.length, index);
+        value = Tag.string(raw.slice(at(start), end === null ? raw.length : at(end)));
       }
     } else if (valueKind === "compute") {
       cursor.error(
@@ -261,6 +266,10 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
   try {
     applyPathModify(source.root, path, mode as "set" | "merge" | "append" | "prepend" | "insert" | "remove", value, insertIndex);
   } catch (error) {
+    // During lint the pack's setup functions have not run, so entity/storage
+    // state may be absent. Do not turn that context-dependent type mismatch
+    // into a false-positive error.
+    if (ctx.lint) return { result: 0, success: true };
     throw new CommandError(String((error as Error).message), pathStart, "modify");
   }
   feedback(ctx, "success", `Modified ${source.label}: ${pathText} ${mode}`);
@@ -270,11 +279,12 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
 function remove(cursor: Cursor, ctx: CommandContext): CommandResult {
   const source = readSource(cursor, ctx, true);
   const pathStart = cursor.mark();
-  const pathText = cursor.readWord();
+  const pathText = cursor.readNbtPathText();
   const path = parsePathSafe(cursor, pathText, pathStart);
   try {
     applyPathModify(source.root, path, "remove", null);
   } catch (error) {
+    if (ctx.lint) return { result: 0, success: true };
     throw new CommandError(String((error as Error).message), pathStart, "remove");
   }
   feedback(ctx, "success", `Removed tag ${pathText} from ${source.label}`);

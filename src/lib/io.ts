@@ -166,6 +166,9 @@ function stripWrapper(files: Record<string, string>): Record<string, string> {
 }
 
 export function detectVersion(files: Record<string, string>): string {
+  const paths = Object.keys(files);
+  const hasSingular = paths.some((path) => /\/function\//.test(path));
+  const hasPlural = paths.some((path) => /\/functions\//.test(path));
   const meta = files["pack.mcmeta"];
   if (meta) {
     try {
@@ -174,6 +177,20 @@ export function detectVersion(files: Record<string, string>): string {
       };
       const raw = parsed.pack?.min_format ?? parsed.pack?.pack_format;
       const major = Array.isArray(raw) ? raw[0] : raw;
+      // A supported-format range plus the singular folder layout means the
+      // pack is newer than its legacy pack_format suggests.
+      const declared = parsed.pack as
+        | { supported_formats?: unknown; max_format?: unknown }
+        | undefined;
+      const hasRange = !!(declared?.supported_formats || declared?.max_format);
+      if (
+        hasRange &&
+        hasSingular &&
+        !hasPlural &&
+        VERSIONS.some((version) => version.functionFolder === "function")
+      ) {
+        return VERSIONS.find((version) => version.functionFolder === "function")!.id;
+      }
       if (typeof major === "number") {
         // Prefer an exact major match, newest first.
         const match = VERSIONS.find((v) => v.packFormat[0] === major);
@@ -183,9 +200,7 @@ export function detectVersion(files: Record<string, string>): string {
       // Fall through to folder detection.
     }
   }
-  if (Object.keys(files).some((path) => /\/functions\//.test(path))) {
-    return "1.20.4";
-  }
+  if (hasPlural) return "1.20.4";
   return "26.3";
 }
 

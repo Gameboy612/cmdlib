@@ -64,7 +64,11 @@ export function createEntity(
       base[key] = clone(value);
     }
   }
-  const uuid = nextUuid();
+  const nbtUuid = base.UUID;
+  const uuid =
+    nbtUuid && nbtUuid.type === "intArray" && nbtUuid.value.length >= 4
+      ? uuidFromInts(nbtUuid.value)
+      : nextUuid();
   if (!base.UUID) base.UUID = Tag.intArray(uuidToInts(uuid));
   const entity: EntityData = {
     uuid,
@@ -83,6 +87,40 @@ export function createEntity(
 
 function clone(tag: NbtTag): NbtTag {
   return JSON.parse(JSON.stringify(tag)) as NbtTag;
+}
+
+export function uuidFromInts(ints: number[]): string {
+  const hex = ints
+    .slice(0, 4)
+    .map((n) => (n >>> 0).toString(16).padStart(8, "0"))
+    .join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * Expand a canonical or abbreviated UUID (`91bb5-0-0-0-ffff`) to the
+ * 8-4-4-4-12 form used by entity NBT.
+ */
+export function canonicalUuid(raw: string): string | null {
+  const value = raw.trim().toLowerCase();
+  if (!/^[0-9a-f-]+$/.test(value)) return null;
+  let groups: string[];
+  if (value.includes("-")) {
+    groups = value.split("-");
+    if (groups.length !== 5) return null;
+  } else {
+    if (value.length > 32) return null;
+    const padded = value.padStart(32, "0");
+    groups = [padded.slice(0, 8), padded.slice(8, 12), padded.slice(12, 16), padded.slice(16, 20), padded.slice(20, 32)];
+  }
+  const widths = [8, 4, 4, 4, 12];
+  if (groups.length !== widths.length) return null;
+  const expanded = groups.map((group, index) => {
+    if (group.length === 0 || group.length > widths[index]) return null;
+    return group.padStart(widths[index], "0");
+  });
+  if (expanded.some((group) => group === null)) return null;
+  return expanded.join("-");
 }
 
 function uuidToInts(uuid: string): number[] {

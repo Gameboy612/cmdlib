@@ -58,6 +58,34 @@ export class Cursor {
   }
 
   /** Read one whitespace-delimited word, honouring quotes. */
+  /** Read an NBT path, keeping spaces inside `{...}` / `[...]` filters. */
+  readNbtPathText(): string {
+    this.skip();
+    const start = this.pos;
+    let depth = 0;
+    let quote: string | null = null;
+    while (this.pos < this.end) {
+      const ch = this.text[this.pos];
+      if (quote) {
+        if (ch === "\\") this.pos++;
+        else if (ch === quote) quote = null;
+        this.pos++;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+      } else if (ch === "{" || ch === "[") {
+        depth++;
+      } else if (ch === "}" || ch === "]") {
+        depth = Math.max(0, depth - 1);
+      } else if (/\s/.test(ch) && depth === 0) {
+        break;
+      }
+      this.pos++;
+    }
+    return this.text.slice(start, this.pos);
+  }
+
   readWord(): string {
     this.skip();
     const start = this.pos;

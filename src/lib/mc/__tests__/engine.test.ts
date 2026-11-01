@@ -4,6 +4,7 @@ import { getPathValues, parseNbtPath, applyPathModify } from "../nbtPath";
 import { isCompound, stringifySnbt, Tag } from "../nbt";
 import { createDemoProject } from "./fixtures";
 import { Simulator } from "../simulator";
+import { entityPos } from "../entities";
 import { getVersion } from "../version";
 import { parseTextComponent } from "../snbt";
 import { plainText } from "../text";
@@ -354,5 +355,65 @@ describe("data get numeric result", () => {
     );
     expect(outcome.ok).toBe(true);
     expect(sim.world.getScore("#seed", "LCG.consts")).toBe(expected);
+  });
+});
+
+describe("datapack compatibility features", () => {
+  it("accepts forceload and targets entities by UUID", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    expect(sim.runCommand("forceload add 29999999 91665").ok).toBe(true);
+    const summon = sim.runCommand(
+      "summon item_display 0 64 0 {UUID:[I;596917,0,0,65535]}",
+    );
+    expect(summon.ok).toBe(true);
+    const outcome = sim.runCommand(
+      "execute as 91bb5-0-0-0-ffff run data modify storage test:uuid value set from entity @s UUID[0]",
+    );
+    expect(outcome.ok).toBe(true);
+    const value = sim.world.storage("test:uuid")?.value.value;
+    expect(value?.type).toBe("int");
+    if (value?.type === "int") expect(value.value).toBe(596917);
+  });
+
+  it("supports negative list indexes, compound filters and string slices", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand(
+      'data merge storage test:data {list:[{n:1},{n:2}],str:"abc",obj:{x:"fail"}}',
+    );
+    sim.runCommand("data modify storage test:data list[-1].n set value 9");
+    expect(
+      sim.runCommand("data get storage test:data list[-1].n").ok,
+    ).toBe(true);
+    expect(
+      sim.runCommand("data remove storage test:data list[-1]").ok,
+    ).toBe(true);
+    sim.runCommand("data modify storage test:data str set string storage test:data str 0 -1");
+    expect(sim.runCommand("data get storage test:data str").ok).toBe(true);
+    sim.runCommand('execute if data storage test:data obj{x:"fail"} run say MATCH');
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("MATCH")),
+    ).toBe(true);
+  });
+
+  it("supports execute if function and tp facing/local coordinates", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/cond.mcfunction"] = "return 1\n";
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("execute if function cmdlib:cond run say COND-PASS");
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("COND-PASS")),
+    ).toBe(true);
+
+    sim.runCommand("tp @s 0 64 0 facing 0 64 1");
+    const player = sim.world.player()!;
+    const rotation = player.nbt.value.Rotation;
+    expect(rotation?.type).toBe("list");
+    sim.runCommand("tp @s ^ ^ ^2");
+    expect(entityPos(sim.world.player()!).z).toBeGreaterThan(1);
   });
 });

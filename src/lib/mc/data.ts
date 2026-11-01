@@ -89,6 +89,38 @@ export const ENTITY_TYPES: EntityTypeInfo[] = [
     Age: Tag.short(0),
   }),
   entity("item_frame", "Item Frame", "object", "#B08A52", "object", 0.5),
+  entity("item_display", "Item Display", "object", "#C5A86A", "item", 0.5, {
+    ...commonNbt(20),
+    item: Tag.compound({ id: Tag.string("minecraft:stone"), count: Tag.int(1) }),
+    transformation: Tag.compound({
+      translation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0)], "float"),
+      left_rotation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)], "float"),
+      scale: Tag.list([Tag.float(1), Tag.float(1), Tag.float(1)], "float"),
+      right_rotation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)], "float"),
+    }),
+    billboard: Tag.string("fixed"),
+  }),
+  entity("block_display", "Block Display", "object", "#A88D62", "object", 1, {
+    ...commonNbt(20),
+    block_state: Tag.compound({ Name: Tag.string("minecraft:stone") }),
+    transformation: Tag.compound({
+      translation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0)], "float"),
+      left_rotation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)], "float"),
+      scale: Tag.list([Tag.float(1), Tag.float(1), Tag.float(1)], "float"),
+      right_rotation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)], "float"),
+    }),
+  }),
+  entity("text_display", "Text Display", "object", "#CBB8E8", "marker", 0.5, {
+    ...commonNbt(20),
+    text: Tag.string('{"text":""}'),
+    transformation: Tag.compound({
+      translation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0)], "float"),
+      left_rotation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)], "float"),
+      scale: Tag.list([Tag.float(1), Tag.float(1), Tag.float(1)], "float"),
+      right_rotation: Tag.list([Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)], "float"),
+    }),
+  }),
+  entity("interaction", "Interaction", "object", "#9BA7B4", "marker", 1),
   entity("marker", "Marker", "object", "#7CE3D2", "marker", 0.1, {
     ...commonNbt(20),
     data: Tag.compound(),
@@ -449,6 +481,14 @@ export const COMMANDS: Record<string, CommandSpec> = {
     usage: "/title <targets> <title|subtitle|actionbar> <component>",
     args: [arg("targets", "targets"), arg("action", "enum"), arg("component", "component", undefined, true)],
   },
+  forceload: {
+    name: "forceload",
+    summary: "Keep chunks loaded in the simulation.",
+    category: "server",
+    supported: true,
+    usage: "/forceload <add|remove|query> <x> <z> [<x2> <z2>]",
+    args: [arg("action", "enum"), arg("x", "integer"), arg("z", "integer")],
+  },
   function: {
     name: "function",
     summary: "Run a function, optionally with macro arguments.",
@@ -596,13 +636,14 @@ export const COMMANDS: Record<string, CommandSpec> = {
   },
   trigger: {
     name: "trigger",
-    summary: "Set a trigger objective for the executing player.",
+    summary: "Add to or set a trigger objective for the executing player.",
     category: "player",
     supported: true,
-    usage: "/trigger <objective> [<value>]",
+    usage: "/trigger <objective> | /trigger <objective> add <value> | /trigger <objective> set <value>",
     args: [
       arg("objective", "objective", "A trigger-criterion objective enabled for this player."),
-      arg("value", "integer", "Score to set. Defaults to 0.", true),
+      arg("action", "enum", "add or set. Omitting both adds 1.", true),
+      arg("value", "integer", "32-bit value to add or set.", true),
     ],
   },
   xp: { name: "xp", summary: "Add or query experience.", category: "player", supported: false },

@@ -1,12 +1,24 @@
 import type { World } from "./world";
 import type { EntityData, Vec3 } from "./entities";
 import {
+  canonicalUuid,
   entityCustomName,
   entityPos,
   entityTags,
   normalizeType,
+  uuidFromInts,
 } from "./entities";
-import { CompoundTag, isCompound, isList, NbtTag, numericValue, Tag, compoundMatches } from "./nbt";
+import {
+  CompoundTag,
+  isCompound,
+  isIntArray,
+  isList,
+  isString,
+  NbtTag,
+  numericValue,
+  Tag,
+  compoundMatches,
+} from "./nbt";
 import { parseSnbt, SnbtError } from "./snbt";
 
 export type SelectorVariable = "s" | "p" | "a" | "e" | "r" | "n";
@@ -377,6 +389,19 @@ export function holderName(entity: EntityData): string {
   return entity.isPlayer && entity.username ? entity.username : entity.uuid;
 }
 
+function entityUuid(entity: EntityData): string {
+  const tag = entity.nbt.value.UUID;
+  if (isIntArray(tag) && tag.value.length >= 4) return uuidFromInts(tag.value);
+  if (isString(tag)) return canonicalUuid(tag.value) ?? entity.uuid;
+  return entity.uuid;
+}
+
+function entityByUuid(world: World, raw: string): EntityData | undefined {
+  const wanted = canonicalUuid(raw);
+  if (!wanted) return undefined;
+  return world.entities.find((entity) => entityUuid(entity) === wanted);
+}
+
 export function resolveEntityTargets(
   world: World,
   raw: string,
@@ -390,8 +415,19 @@ export function resolveEntityTargets(
       const player = world.entities.find(
         (e) => e.isPlayer && e.username === token.name,
       );
-      if (player) out.push(player);
-      else if (!options.lenient) {
+      if (player) {
+        out.push(player);
+        continue;
+      }
+      const byUuid = entityByUuid(world, token.name);
+      if (byUuid) {
+        out.push(byUuid);
+        continue;
+      }
+      if (!options.lenient) {
+        if (canonicalUuid(token.name)) {
+          throw new SelectorError(`No entity was found with the UUID '${token.name}'`);
+        }
         throw new SelectorError(`No player was found with the name '${token.name}'`);
       }
     }
@@ -416,7 +452,11 @@ export function resolveHolderTargets(
         out.push({ holder: holderName(entity), entity });
       }
     } else {
-      out.push({ holder: token.name });
+      const entity = entityByUuid(world, token.name);
+      out.push({
+        holder: entity ? holderName(entity) : token.name,
+        entity,
+      });
     }
   }
   return out;
@@ -430,7 +470,10 @@ export function resolveSingleHolder(
   origin: Vec3,
 ): string {
   const tokens = parseTargets(raw);
-  if (tokens.length === 1 && tokens[0].kind === "name") return tokens[0].name;
+  if (tokens.length === 1 && tokens[0].kind === "name") {
+    const entity = entityByUuid(world, tokens[0].name);
+    return entity ? holderName(entity) : tokens[0].name;
+  }
   const holders = resolveHolderTargets(world, raw, { source, origin, lenient: true });
   if (holders.length === 0) return raw;
   return holders[0].holder;

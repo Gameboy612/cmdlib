@@ -2,6 +2,7 @@ import { Cursor } from "../cursor";
 import { CompoundTag, isCompound } from "../nbt";
 import { STATUS_EFFECT_IDS } from "../data";
 import { isGameMode, type GameMode } from "../player";
+import { SCOREBOARD_MAX, SCOREBOARD_MIN } from "../world";
 import type { EntityData } from "../entities";
 import {
   holderName,
@@ -435,18 +436,59 @@ export const triggerHandler: Handler = (cursor, ctx) => {
     );
   }
 
-  let value = 0;
-  if (!cursor.done()) value = cursor.readInt().value;
+  let action: "add" | "set" = "add";
+  let amount = 1;
+  let explicitAction = false;
+  if (!cursor.done()) {
+    explicitAction = true;
+    const actionStart = cursor.mark();
+    const rawAction = cursor.readWord().toLowerCase();
+    if (rawAction !== "add" && rawAction !== "set") {
+      cursor.error(
+        `Expected 'add <value>' or 'set <value>', got '${rawAction}'`,
+        actionStart,
+        "trigger-action",
+      );
+    }
+    action = rawAction === "set" ? "set" : "add";
+    if (cursor.done()) {
+      cursor.error(
+        `Expected an integer after '${action}'`,
+        cursor.mark(),
+        "trigger-value",
+      );
+    }
+    const parsed = cursor.readInt();
+    if (parsed.value < SCOREBOARD_MIN || parsed.value > SCOREBOARD_MAX) {
+      cursor.error(
+        `Trigger value must be between ${SCOREBOARD_MIN} and ${SCOREBOARD_MAX}`,
+        parsed.start,
+        "score-range",
+      );
+    }
+    amount = parsed.value;
+  }
 
+  let result = 1;
   if (!ctx.lint) {
-    // `setScore` applies the existing Java 32-bit score clamp.
-    ctx.world.setScore(holder, objective, value);
+    const current = ctx.world.getScore(holder, objective);
+    // `/trigger <objective>` adds one when a score exists, but initialises an
+    // unset score to 0 (the vanilla quirk for first use).
+    const next = explicitAction
+      ? action === "set"
+        ? amount
+        : (current ?? 0) + amount
+      : current === undefined
+        ? 0
+        : current + 1;
+    ctx.world.setScore(holder, objective, next);
+    result = ctx.world.getScore(holder, objective) ?? 0;
     ctx.world.setTriggerEnabled(holder, objective, false);
   }
   feedback(
     ctx,
     "success",
-    `Triggered '${objective}' for ${ctx.world.holderDisplayName(holder)} (set to ${value})`,
+    `Triggered '${objective}' for ${ctx.world.holderDisplayName(holder)} (${action} ${amount}, now ${result})`,
   );
-  return { result: 1, success: true };
+  return { result, success: true };
 };

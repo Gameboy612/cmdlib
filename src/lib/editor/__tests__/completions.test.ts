@@ -61,6 +61,8 @@ describe("trigger completion", () => {
 
     expect(triggerLabels("trigger ")).toContain("reward");
     expect(triggerLabels("trigger ")).not.toContain("points");
+    expect(triggerLabels("trigger reward ")).toContain("add");
+    expect(triggerLabels("trigger reward ")).toContain("set");
 
     world.setTriggerEnabled(world.player()!, "reward", false);
     const disabled = buildCompletionIndex(project, version, world);

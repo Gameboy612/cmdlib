@@ -362,7 +362,7 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
         const targetsStart = cursor.mark();
         const raw = cursor.readTargetsRaw().raw;
         const pathStart = cursor.mark();
-        const pathText = cursor.readWord();
+        const pathText = cursor.readNbtPathText();
         const path = parsePath(cursor, pathText, pathStart);
         exists = () => {
           const entities = resolveEntityTargets(ctx.world, raw, {
@@ -376,7 +376,7 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
       } else if (sourceKind === "storage") {
         const id = cursor.readResourceLocation();
         const pathStart = cursor.mark();
-        const pathText = cursor.readWord();
+        const pathText = cursor.readNbtPathText();
         const path = parsePath(cursor, pathText, pathStart);
         exists = () => {
           const storage = ctx.world.storage(id);
@@ -385,7 +385,7 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
       } else {
         const pos = cursor.readVec3(ctx.pos, ctx.rotation);
         const pathStart = cursor.mark();
-        const pathText = cursor.readWord();
+        const pathText = cursor.readNbtPathText();
         const path = parsePath(cursor, pathText, pathStart);
         exists = () => getPathValues(ctx.world.getBlockNbt(pos), path).length > 0;
       }
@@ -410,6 +410,17 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
         });
       };
     }
+    case "function": {
+      const idStart = cursor.mark();
+      const id = cursor.readResourceLocation();
+      if (ctx.lint && !ctx.world.getFunction(id)) {
+        cursor.error(`Unknown function '${id}'`, idStart, "unknown-function");
+      }
+      return () => {
+        if (ctx.lint) return true;
+        return ctx.runtime.runFunction(id, null, ctx).success;
+      };
+    }
     case "loaded": {
       cursor.readVec3(ctx.pos, ctx.rotation);
       return () => true;
@@ -424,7 +435,7 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
       break;
     default:
       cursor.error(
-        `Unknown condition '${kind}'. Expected entity, score, block, data, dimension, loaded or predicate.`,
+        `Unknown condition '${kind}'. Expected entity, score, block, data, dimension, function, loaded or predicate.`,
         start,
         "condition",
       );
@@ -451,7 +462,7 @@ function parseStore(cursor: Cursor, ctx: CommandContext): StoreSpec {
   }
   if (kind === "storage") {
     spec.storageId = cursor.readResourceLocation();
-    spec.pathText = cursor.readWord();
+    spec.pathText = cursor.readNbtPathText();
     spec.valueType = cursor.readWord();
     assertStoreType(cursor, spec.valueType);
     if (!cursor.done()) spec.scale = cursor.readNumber().value;
@@ -459,7 +470,7 @@ function parseStore(cursor: Cursor, ctx: CommandContext): StoreSpec {
   }
   if (kind === "entity") {
     spec.targetsRaw = cursor.readTargetsRaw().raw;
-    spec.pathText = cursor.readWord();
+    spec.pathText = cursor.readNbtPathText();
     spec.valueType = cursor.readWord();
     assertStoreType(cursor, spec.valueType);
     if (!cursor.done()) spec.scale = cursor.readNumber().value;
@@ -467,7 +478,7 @@ function parseStore(cursor: Cursor, ctx: CommandContext): StoreSpec {
   }
   if (kind === "block") {
     spec.pos = cursor.readVec3(ctx.pos, ctx.rotation);
-    spec.pathText = cursor.readWord();
+    spec.pathText = cursor.readNbtPathText();
     spec.valueType = cursor.readWord();
     assertStoreType(cursor, spec.valueType);
     if (!cursor.done()) spec.scale = cursor.readNumber().value;

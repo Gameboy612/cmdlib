@@ -198,6 +198,12 @@ function commandArgumentCompletion(
           detail: "enabled trigger",
         }));
       }
+      if (arg === 1) {
+        return [
+          keyword("add", "Add a value to the trigger's current score."),
+          keyword("set", "Set the trigger's score to a value."),
+        ];
+      }
       return null;
     case "kill":
     case "tp":
@@ -600,12 +606,22 @@ function executeCompletion(
         keyword("block", "Compares a block."),
         keyword("data", "Checks that an NBT path exists."),
         keyword("dimension", "Checks the dimension."),
+        keyword("function", "Runs a function and checks its success."),
         keyword("loaded", "Checks that a chunk is loaded."),
         keyword("items", "Checks an inventory slot (26.3)."),
         keyword("slots", "Counts matching slots (26.3)."),
       ]);
     }
     if (words[2] === "entity" && at === 3) return wrap(targetOptions(index));
+    if (words[2] === "function" && at === 3) {
+      return wrap(
+        index.functions.map((fn) => ({
+          label: fn.id,
+          type: "function",
+          detail: fn.hasMacros ? "macro function" : "function",
+        })),
+      );
+    }
     if (words[2] === "score") {
       if (at === 3) return wrap(targetOptions(index));
       if (at === 4) return wrap(objectiveOptions(index));

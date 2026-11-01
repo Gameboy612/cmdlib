@@ -17,6 +17,7 @@ import {
   setEntityPos,
   setEntityRotation,
   type EntityData,
+  type Vec3,
 } from "../entities";
 import { resolveEntityTargets, SelectorError } from "../selectors";
 import { CommandContext, CommandResult, executeCommandLine, feedback, print, ReturnSignal } from "./context";
@@ -87,6 +88,17 @@ export const killHandler: Handler = (cursor, ctx) => {
   return { result: entities.length, success: true };
 };
 
+function lookAt(from: Vec3, to: Vec3): { yaw: number; pitch: number } {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dz = to.z - from.z;
+  const horizontal = Math.hypot(dx, dz);
+  return {
+    yaw: (Math.atan2(-dx, dz) * 180) / Math.PI,
+    pitch: (-Math.atan2(dy, horizontal) * 180) / Math.PI,
+  };
+}
+
 export const teleportHandler: Handler = (cursor, ctx) => {
   const targetsStart = cursor.mark();
   const raw = cursor.readTargetsRaw().raw;
@@ -108,7 +120,32 @@ export const teleportHandler: Handler = (cursor, ctx) => {
   const looksLikeCoordinate = /^[~^+\-.\d]/.test(next);
   if (looksLikeCoordinate) {
     pos = cursor.readVec3(ctx.pos, ctx.rotation);
-    if (!cursor.done()) rotation = cursor.readVec2();
+    if (!cursor.done()) {
+      if (cursor.peekWord() === "facing") {
+        cursor.readWord();
+        if (cursor.peekWord() === "entity") {
+          cursor.readWord();
+          const targetRaw = cursor.readTargetsRaw().raw;
+          const anchor = cursor.done() ? "feet" : cursor.readWord();
+          const target = resolveEntityTargets(ctx.world, targetRaw, {
+            source: ctx.source,
+            origin: ctx.pos,
+            lenient: ctx.lint,
+          })[0];
+          if (target) {
+            const targetPos = entityPos(target);
+            rotation = lookAt(pos, {
+              ...targetPos,
+              y: targetPos.y + (anchor === "eyes" ? 1.62 : 0),
+            });
+          }
+        } else {
+          rotation = lookAt(pos, cursor.readVec3(ctx.pos, ctx.rotation));
+        }
+      } else {
+        rotation = cursor.readVec2();
+      }
+    }
   } else {
     const destinationStart = cursor.mark();
     const destinationRaw = cursor.readTargetsRaw().raw;
@@ -304,3 +341,29 @@ function tagsOf(entity: EntityData): string[] {
 void isCompound;
 void entityInfo;
 void CommandError;
+
+export const forceloadHandler: Handler = (cursor, ctx) => {
+  const action = cursor.readWord();
+  if (!["add", "remove", "query"].includes(action)) {
+    cursor.error(
+      `Expected add, remove or query, got '${action}'`,
+      cursor.mark() - action.length,
+      "forceload-action",
+    );
+    return { result: 0, success: false };
+  }
+  const values: number[] = [];
+  while (!cursor.done()) {
+    values.push(cursor.readInt().value);
+  }
+  if (action === "add" && values.length !== 2 && values.length !== 4) {
+    cursor.error(
+      "Expected /forceload add <x> <z> [<x2> <z2>]",
+      cursor.mark(),
+      "forceload-coordinates",
+    );
+  }
+  if (ctx.lint) return { result: 1, success: true };
+  feedback(ctx, "success", `forceload ${action}: chunks marked ${action === "add" ? "loaded" : action === "remove" ? "unloaded" : "queried"}`);
+  return { result: 1, success: true };
+};

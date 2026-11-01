@@ -215,7 +215,7 @@ describe("/scoreboard players enable and /trigger", () => {
   it("requires a trigger objective and an enabled trigger", () => {
     const sim = newSim();
 
-    const disabled = sim.runCommand("trigger reward 5");
+    const disabled = sim.runCommand("trigger reward add 5");
     expect(disabled.ok).toBe(false);
     expect(disabled.error).toContain("not enabled");
 
@@ -227,13 +227,13 @@ describe("/scoreboard players enable and /trigger", () => {
     expect(enabled.ok).toBe(true);
     expect(sim.world.isTriggerEnabled("Dev", "reward")).toBe(true);
 
-    const triggered = sim.runCommand("trigger reward 5");
+    const triggered = sim.runCommand("trigger reward set 5");
     expect(triggered.ok).toBe(true);
     expect(sim.world.getScore("Dev", "reward")).toBe(5);
     expect(sim.world.isTriggerEnabled("Dev", "reward")).toBe(false);
 
     // Triggers are one-shot until enabled again.
-    expect(sim.runCommand("trigger reward 7").ok).toBe(false);
+    expect(sim.runCommand("trigger reward set 7").ok).toBe(false);
     expect(sim.world.getScore("Dev", "reward")).toBe(5);
   });
 
@@ -252,15 +252,34 @@ describe("/scoreboard players enable and /trigger", () => {
     expect(sim.world.getScore("#temp", "enabled")).toBe(0);
   });
 
-  it("defaults to zero and applies the existing score clamp", () => {
+  it("adds one by default, supports add/set, and clamps", () => {
     const sim = newSim();
     sim.runCommand("scoreboard players enable @s reward");
     expect(sim.runCommand("trigger reward").ok).toBe(true);
     expect(sim.world.getScore("Dev", "reward")).toBe(0);
 
     sim.runCommand("scoreboard players enable @s reward");
-    sim.runCommand("trigger reward 9999999999");
+    sim.runCommand("trigger reward set 4");
+    expect(sim.world.getScore("Dev", "reward")).toBe(4);
+
+    sim.runCommand("scoreboard players enable @s reward");
+    sim.runCommand("trigger reward");
+    expect(sim.world.getScore("Dev", "reward")).toBe(5);
+
+    sim.runCommand("scoreboard players enable @s reward");
+    sim.runCommand("trigger reward set -7");
+    expect(sim.world.getScore("Dev", "reward")).toBe(-7);
+
+    sim.runCommand("scoreboard players enable @s reward");
+    sim.runCommand("trigger reward set 0");
+    sim.runCommand("scoreboard players enable @s reward");
+    sim.runCommand("trigger reward add 2147483647");
     expect(sim.world.getScore("Dev", "reward")).toBe(2147483647);
+
+    sim.runCommand("scoreboard players enable @s reward");
+    const range = sim.runCommand("trigger reward set 9999999999");
+    expect(range.ok).toBe(false);
+    expect(range.error).toContain("must be between");
   });
 });
 
@@ -314,7 +333,7 @@ describe("command metadata and lint", () => {
         "effect clear @s speed",
         "clear @s diamond 1",
         "scoreboard players enable @s reward",
-        "execute anchored eyes positioned ~ ~ ~ run trigger reward 1",
+        "execute anchored eyes positioned ~ ~ ~ run trigger reward set 1",
       ].join("\n"),
     });
     const report = lintProject(project);

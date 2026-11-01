@@ -110,13 +110,15 @@ function readWithSource(cursor: Cursor, ctx: CommandContext): CompoundTag {
       throw new CommandError(`No storage named '${id}' exists`, idStart, "storage-not-found");
     }
     const pathStart = cursor.mark();
-    const pathText = cursor.readWord();
-    const path = parsePath(cursor, pathText, pathStart);
+    const pathText = cursor.done() ? "" : cursor.readNbtPathText();
+    const path = pathText ? parsePath(cursor, pathText, pathStart) : [];
     const values = getPathValues(storage, path);
     if (values.length !== 1 || !isCompound(values[0])) {
       if (ctx.lint) return Tag.compound();
       throw new CommandError(
-        `The path '${pathText}' must point at exactly one compound`,
+        pathText
+          ? `The path '${pathText}' must point at exactly one compound`
+          : "The storage must contain a compound",
         pathStart,
         "macro-source",
       );
@@ -126,8 +128,8 @@ function readWithSource(cursor: Cursor, ctx: CommandContext): CompoundTag {
   if (kind === "entity") {
     const raw = cursor.readTargetsRaw().raw;
     const pathStart = cursor.mark();
-    const pathText = cursor.readWord();
-    const path = parsePath(cursor, pathText, pathStart);
+    const pathText = cursor.done() ? "" : cursor.readNbtPathText();
+    const path = pathText ? parsePath(cursor, pathText, pathStart) : [];
     const entities = resolveEntityTargets(ctx.world, raw, {
       source: ctx.source,
       origin: ctx.pos,
@@ -145,7 +147,9 @@ function readWithSource(cursor: Cursor, ctx: CommandContext): CompoundTag {
     if (values.length !== 1 || !isCompound(values[0])) {
       if (ctx.lint) return Tag.compound();
       throw new CommandError(
-        `The path '${pathText}' must point at exactly one compound`,
+        pathText
+          ? `The path '${pathText}' must point at exactly one compound`
+          : "The entity NBT must contain a compound",
         pathStart,
         "macro-source",
       );
@@ -155,13 +159,15 @@ function readWithSource(cursor: Cursor, ctx: CommandContext): CompoundTag {
   if (kind === "block") {
     const pos = cursor.readVec3(ctx.pos, ctx.rotation);
     const pathStart = cursor.mark();
-    const pathText = cursor.readWord();
-    const path = parsePath(cursor, pathText, pathStart);
+    const pathText = cursor.done() ? "" : cursor.readNbtPathText();
+    const path = pathText ? parsePath(cursor, pathText, pathStart) : [];
     const values = getPathValues(ctx.world.getBlockNbt(pos), path);
     if (values.length !== 1 || !isCompound(values[0])) {
       if (ctx.lint) return Tag.compound();
       throw new CommandError(
-        `The path '${pathText}' must point at exactly one compound`,
+        pathText
+          ? `The path '${pathText}' must point at exactly one compound`
+          : "The block NBT must contain a compound",
         pathStart,
         "macro-source",
       );

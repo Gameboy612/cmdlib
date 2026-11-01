@@ -26,6 +26,7 @@ export type NbtPathSegment =
   | { kind: "key"; key: string }
   | { kind: "index"; index: number }
   | { kind: "all" }
+  | { kind: "match"; pattern: CompoundTag }
   | { kind: "filter"; pattern: CompoundTag }
   | { kind: "filterIndex"; pattern: CompoundTag; index: number };
 
@@ -50,6 +51,39 @@ export function parseNbtPath(text: string): NbtPathSegment[] {
   while (i < text.length) {
     if (text[i] === ".") {
       i++;
+      continue;
+    }
+    if (text[i] === "{") {
+      const start = i;
+      let depth = 0;
+      let inString: string | null = null;
+      for (; i < text.length; i++) {
+        const ch = text[i];
+        if (inString) {
+          if (ch === "\\") i++;
+          else if (ch === inString) inString = null;
+          continue;
+        }
+        if (ch === '"' || ch === "'") inString = ch;
+        else if (ch === "{") depth++;
+        else if (ch === "}") {
+          depth--;
+          if (depth === 0) {
+            i++;
+            break;
+          }
+        }
+      }
+      if (depth !== 0) error("Unclosed compound filter", start);
+      const raw = text.slice(start, i);
+      let pattern: CompoundTag = Tag.compound();
+      try {
+        pattern = parseSnbt(raw) as CompoundTag;
+      } catch (e) {
+        const snbt = e as SnbtError;
+        error(snbt.message, start + snbt.index);
+      }
+      segments.push({ kind: "match", pattern });
       continue;
     }
     if (text[i] === "[") {
@@ -112,8 +146,8 @@ export function parseNbtPath(text: string): NbtPathSegment[] {
       while (text[i] === " ") i++;
       if (text[i] !== "]") error("Expected ']' after list index");
       i++;
-      if (!Number.isInteger(index) || index < 0) {
-        error("List indexes must be non-negative integers", start);
+      if (!Number.isInteger(index)) {
+        error("List indexes must be integers", start);
       }
       segments.push({ kind: "index", index });
       continue;
@@ -146,7 +180,7 @@ export function parseNbtPath(text: string): NbtPathSegment[] {
       if (key.length === 0) error(`Unexpected '${text[i]}' in path`, i);
     }
     segments.push({ kind: "key", key });
-    if (i < text.length && text[i] !== "." && text[i] !== "[") {
+    if (i < text.length && text[i] !== "." && text[i] !== "[" && text[i] !== "{") {
       error(`Unexpected '${text[i]}' in path`, i);
     }
   }
@@ -176,19 +210,35 @@ export function resolvePath(root: NbtTag, segments: NbtPathSegment[]): PathNode[
           break;
         }
         case "index": {
+          const length = isList(current)
+            ? current.value.length
+            : isNumericArray(current)
+              ? current.value.length
+              : 0;
+          const index = segment.index < 0 ? length + segment.index : segment.index;
           if (isList(current)) {
-            const value = current.value[segment.index];
+            const value = current.value[index];
             if (value === undefined) continue;
-            next.push({ parent: current, key: segment.index, value });
+            next.push({ parent: current, key: index, value });
           } else if (isNumericArray(current)) {
-            const value = current.value[segment.index];
+            const value = current.value[index];
             if (value === undefined) continue;
             next.push({
               parent: current,
-              key: segment.index,
+              key: index,
               value: arrayElementTag(current, value),
             });
           }
+          break;
+        }
+        case "match": {
+          if (!isCompound(current)) continue;
+          const matches = Object.entries(segment.pattern.value).every(
+            ([key, value]) =>
+              current.value[key] !== undefined &&
+              tagMatches(current.value[key], value),
+          );
+          if (matches) next.push(node);
           break;
         }
         case "all": {
@@ -369,14 +419,15 @@ export function applyPathModify(
       if (mode !== "set") {
         throw new Error(`Cannot ${mode} an element of a ${container.type}`);
       }
-      if (last.index < 0 || last.index >= container.value.length) {
+      const index = last.index < 0 ? container.value.length + last.index : last.index;
+      if (index < 0 || index >= container.value.length) {
         throw new Error(`Index ${last.index} is outside the array`);
       }
       const number = numericValue(value);
       if (number === null) {
         throw new Error("Array elements must be numbers");
       }
-      container.value[last.index] =
+      container.value[index] =
         container.type === "byteArray"
           ? Tag.byte(number).value
           : container.type === "intArray"
@@ -387,21 +438,22 @@ export function applyPathModify(
     if (!isList(container)) {
       throw new Error("Cannot index a non-list tag");
     }
+    const index = last.index < 0 ? container.value.length + last.index : last.index;
     switch (mode) {
       case "set": {
-        if (last.index >= container.value.length) {
-          if (last.index === container.value.length) {
+        if (index >= container.value.length) {
+          if (index === container.value.length) {
             container.value.push(cloneTag(value!));
           } else {
             throw new Error(`Index ${last.index} is outside the list`);
           }
         } else {
-          container.value[last.index] = cloneTag(value!);
+          container.value[index] = cloneTag(value!);
         }
         break;
       }
       case "merge": {
-        const current = container.value[last.index];
+        const current = container.value[index];
         if (!isCompound(current) || !isCompound(value)) {
           throw new Error("merge requires two compounds");
         }
@@ -411,7 +463,7 @@ export function applyPathModify(
       case "append":
       case "prepend":
       case "insert": {
-        const current = container.value[last.index];
+        const current = container.value[index];
         if (!current || !isList(current)) {
           throw new Error(`Cannot ${mode} to a tag that is not a list`);
         }
@@ -426,10 +478,10 @@ export function applyPathModify(
         break;
       }
       case "remove":
-        if (last.index >= container.value.length) {
+        if (index < 0 || index >= container.value.length) {
           throw new Error(`Index ${last.index} is outside the list`);
         }
-        container.value.splice(last.index, 1);
+        container.value.splice(index, 1);
         break;
     }
     return;
