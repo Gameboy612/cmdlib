@@ -160,6 +160,20 @@ export function isList(tag: NbtTag | undefined | null): tag is ListTag {
 export function isString(tag: NbtTag | undefined | null): tag is StringTag {
   return !!tag && tag.type === "string";
 }
+export function isByteArray(tag: NbtTag | undefined | null): tag is ByteArrayTag {
+  return !!tag && tag.type === "byteArray";
+}
+export function isIntArray(tag: NbtTag | undefined | null): tag is IntArrayTag {
+  return !!tag && tag.type === "intArray";
+}
+export function isLongArray(tag: NbtTag | undefined | null): tag is LongArrayTag {
+  return !!tag && tag.type === "longArray";
+}
+export function isNumericArray(
+  tag: NbtTag | undefined | null,
+): tag is ByteArrayTag | IntArrayTag | LongArrayTag {
+  return isByteArray(tag) || isIntArray(tag) || isLongArray(tag);
+}
 
 export function numericValue(tag: NbtTag | undefined | null): number | null {
   return isNumeric(tag) ? tag.value : null;

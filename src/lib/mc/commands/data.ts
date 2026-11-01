@@ -103,6 +103,11 @@ function get(cursor: Cursor, ctx: CommandContext): CommandResult {
     });
   }
 
+  const result =
+    values.length === 1 && isNumericTag(values[0])
+      ? values[0].value
+      : values.length;
+
   const label =
     source.kind === "storage"
       ? `Storage ${source.id}`
@@ -110,7 +115,7 @@ function get(cursor: Cursor, ctx: CommandContext): CommandResult {
         ? `Block at ${source.pos?.x} ${source.pos?.y} ${source.pos?.z}`
         : `Entity ${source.entity ? entityCustomName(source.entity) : "?"}`;
 
-  if (ctx.lint) return { result: values.length, success: true };
+  if (ctx.lint) return { result, success: true };
 
   if (values.length === 0) {
     print(ctx, "info", `${label} has no data at that path`);
@@ -134,7 +139,7 @@ function get(cursor: Cursor, ctx: CommandContext): CommandResult {
         .join(", ")}`,
     );
   }
-  return { result: values.length, success: true };
+  return { result, success: true };
 }
 
 function merge(cursor: Cursor, ctx: CommandContext): CommandResult {

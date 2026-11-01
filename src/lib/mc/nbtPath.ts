@@ -1,4 +1,17 @@
-import { cloneTag, CompoundTag, isCompound, isList, ListTag, NbtTag, Tag } from "./nbt";
+import {
+  cloneTag,
+  CompoundTag,
+  isByteArray,
+  isCompound,
+  isIntArray,
+  isList,
+  isLongArray,
+  isNumericArray,
+  ListTag,
+  NbtTag,
+  numericValue,
+  Tag,
+} from "./nbt";
 import { parseSnbt, SnbtError } from "./snbt";
 
 /**
@@ -163,16 +176,33 @@ export function resolvePath(root: NbtTag, segments: NbtPathSegment[]): PathNode[
           break;
         }
         case "index": {
-          if (!isList(current)) continue;
-          const value = current.value[segment.index];
-          if (value === undefined) continue;
-          next.push({ parent: current, key: segment.index, value });
+          if (isList(current)) {
+            const value = current.value[segment.index];
+            if (value === undefined) continue;
+            next.push({ parent: current, key: segment.index, value });
+          } else if (isNumericArray(current)) {
+            const value = current.value[segment.index];
+            if (value === undefined) continue;
+            next.push({
+              parent: current,
+              key: segment.index,
+              value: arrayElementTag(current, value),
+            });
+          }
           break;
         }
         case "all": {
           if (isList(current)) {
             current.value.forEach((value, index) =>
               next.push({ parent: current, key: index, value }),
+            );
+          } else if (isNumericArray(current)) {
+            current.value.forEach((value, index) =>
+              next.push({
+                parent: current,
+                key: index,
+                value: arrayElementTag(current, value),
+              }),
             );
           } else if (isCompound(current)) {
             for (const [key, value] of Object.entries(current.value)) {
@@ -212,6 +242,15 @@ export function resolvePath(root: NbtTag, segments: NbtPathSegment[]): PathNode[
     nodes = next;
   }
   return nodes;
+}
+
+function arrayElementTag(
+  array: ReturnType<typeof Tag.byteArray> | ReturnType<typeof Tag.intArray> | ReturnType<typeof Tag.longArray>,
+  value: number,
+): NbtTag {
+  if (isByteArray(array)) return Tag.byte(value);
+  if (isIntArray(array)) return Tag.int(value);
+  return Tag.long(value);
 }
 
 function tagMatches(a: NbtTag, b: NbtTag): boolean {
@@ -326,6 +365,25 @@ export function applyPathModify(
   }
 
   if (last.kind === "index") {
+    if (isNumericArray(container)) {
+      if (mode !== "set") {
+        throw new Error(`Cannot ${mode} an element of a ${container.type}`);
+      }
+      if (last.index < 0 || last.index >= container.value.length) {
+        throw new Error(`Index ${last.index} is outside the array`);
+      }
+      const number = numericValue(value);
+      if (number === null) {
+        throw new Error("Array elements must be numbers");
+      }
+      container.value[last.index] =
+        container.type === "byteArray"
+          ? Tag.byte(number).value
+          : container.type === "intArray"
+            ? Tag.int(number).value
+            : Tag.long(number).value;
+      return;
+    }
     if (!isList(container)) {
       throw new Error("Cannot index a non-list tag");
     }

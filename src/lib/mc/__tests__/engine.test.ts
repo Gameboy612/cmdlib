@@ -291,3 +291,68 @@ describe("terminal execute if", () => {
     expect(outcome.success).toBe(false);
   });
 });
+
+describe("summoned entity UUIDs", () => {
+  it("gives every summoned entity a random UUID int array", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("summon area_effect_cloud 0 64 0");
+    sim.runCommand("summon area_effect_cloud 1 64 0");
+    const clouds = sim.world.entities.filter((entity) => entity.type === "minecraft:area_effect_cloud");
+    expect(clouds).toHaveLength(2);
+    const uuids = clouds.map((entity) => entity.nbt.value.UUID);
+    expect(uuids[0]?.type).toBe("intArray");
+    expect(uuids[1]?.type).toBe("intArray");
+    if (uuids[0]?.type !== "intArray" || uuids[1]?.type !== "intArray") return;
+    expect(uuids[0].value).toHaveLength(4);
+    expect(uuids[0].value).not.toEqual(uuids[1].value);
+  });
+
+  it("reads and writes UUID[0] through NBT paths and /data", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("summon area_effect_cloud 0 64 0");
+    const cloud = sim.world.entities.find((entity) => entity.type === "minecraft:area_effect_cloud")!;
+    const values = getPathValues(cloud.nbt, parseNbtPath("UUID[0]"));
+    expect(values).toHaveLength(1);
+    fireEvent: {
+      const outcome = sim.runCommand(
+        "data modify entity @e[type=area_effect_cloud,limit=1] UUID[0] set value 42",
+      );
+      expect(outcome.ok).toBe(true);
+    }
+    expect(getPathValues(cloud.nbt, parseNbtPath("UUID[0]"))[0].value).toBe(42);
+    const get = sim.runCommand(
+      "data get entity @e[type=area_effect_cloud,limit=1] UUID[0]",
+    );
+    expect(get.ok).toBe(true);
+  });
+});
+
+describe("data get numeric result", () => {
+  it("feeds UUID[0] into execute store result", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add LCG.consts dummy");
+    sim.runCommand('summon area_effect_cloud 0 64 0 {Tags:["LCG.seed"]}');
+    const cloud = sim.world.entities.find(
+      (entity) =>
+        entity.type === "minecraft:area_effect_cloud" &&
+        (entity.nbt.value.Tags as { value?: Array<{ value: string }> } | undefined)?.value?.some(
+          (tag) => tag.value === "LCG.seed",
+        ),
+    )!;
+    const uuid = cloud.nbt.value.UUID;
+    expect(uuid?.type).toBe("intArray");
+    if (uuid?.type !== "intArray") return;
+    const expected = uuid.value[0];
+    const outcome = sim.runCommand(
+      "execute store result score #seed LCG.consts run data get entity @e[type=area_effect_cloud,tag=LCG.seed,distance=0,limit=1] UUID[0]",
+    );
+    expect(outcome.ok).toBe(true);
+    expect(sim.world.getScore("#seed", "LCG.consts")).toBe(expected);
+  });
+});
