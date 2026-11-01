@@ -28,9 +28,9 @@ export function StatusBar() {
       </div>
       <div className={styles.statusRight}>
         <span className={styles.statusItem}>tick {world.tick}</span>
-        <span className={styles.statusItem}>{world.entities.length} entities</span>
+        <span className={styles.statusItem}>{world.entities.length} {world.entities.length === 1 ? "entity" : "entities"}</span>
         <span className={styles.statusItem}>static · local only</span>
-        <span className={`${styles.statusItem} ${styles.statusMuted}`}>v0.1 demo</span>
+        <span className={`${styles.statusItem} ${styles.statusMuted}`}>v0.1</span>
       </div>
     </footer>
   );

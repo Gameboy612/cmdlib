@@ -21,6 +21,13 @@ export function LintSection() {
   const [copied, setCopied] = useState(false);
   const report = useMemo(() => {
     const project = createProject("26.3");
+    // Give the sample a declared objective and a macro function so the report
+    // demonstrates unknown-objective, macro-argument and unsupported-command
+    // rules rather than failing on the clean starter pack itself.
+    project.files["data/cmdlib/function/load.mcfunction"] =
+      "scoreboard objectives add points dummy\n";
+    project.files["data/cmdlib/function/reward.mcfunction"] =
+      "$scoreboard players add @s points $(amount)\n";
     const path = "data/cmdlib/function/start.mcfunction";
     project.files[path] = SAMPLE.join("\n");
     const result = lintProject(project);
@@ -28,7 +35,9 @@ export function LintSection() {
       project,
       path,
       result,
-      diagnostics: result.diagnostics.filter((entry) => entry.path === path),
+      diagnostics: result.diagnostics.filter(
+        (entry) => entry.path === path && entry.code !== "unused-function",
+      ),
     };
   }, []);
 

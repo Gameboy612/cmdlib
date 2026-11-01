@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createProject } from "../../mc/datapack";
+import { createDemoProject } from "../../mc/__tests__/fixtures";
 import { getVersion } from "../../mc/version";
 import { buildCompletionIndex, lineCompletions } from "../completions";
 
-const project = createProject("26.3");
+const project = createDemoProject("26.3");
 const index = buildCompletionIndex(project, getVersion("26.3"));
 const labels = (text: string) => lineCompletions(text, index)?.options.map((o) => o.label) ?? [];
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useWorkbench, useSimRevision, functionPathOf } from "@/lib/state/workbench";
+import { useWorkbench, useSimRevision } from "@/lib/state/workbench";
 import { WorldView } from "@/components/preview/WorldView";
 import { CodeEditor } from "./CodeEditor";
 import { NbtTree } from "./NbtTree";
@@ -16,9 +16,9 @@ import { entityCustomName, entityPos } from "@/lib/mc/entities";
 import { stringifySnbt } from "@/lib/mc/nbt";
 import { toLspDiagnostics, type Diagnostic as LintDiagnostic } from "@/lib/lint";
 import { copyText } from "@/lib/io";
-import { useWorkspace } from "./WorkspaceContext";
 import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
+import type { DockviewPanelApi } from "dockview";
 
 /* ------------------------------------------------------------------ */
 /* Shared                                                             */
@@ -39,14 +39,13 @@ function PanelShell({
   className?: string;
 }) {
   return (
-    <div className={`${styles.panel} ${className}`}>
-      <div className={styles.panelHead}>
-        <div className={styles.panelTitle}>
-          <span>{title}</span>
+    <div className={`${styles.panel} ${className}`} aria-label={title}>
+      {(subtitle || actions) && (
+        <div className={styles.panelBar}>
           {subtitle && <span className={styles.panelSubtitle}>{subtitle}</span>}
+          {actions && <div className={styles.panelActions}>{actions}</div>}
         </div>
-        {actions && <div className={styles.panelActions}>{actions}</div>}
-      </div>
+      )}
       <div className={styles.panelBody}>{children}</div>
       {footer && <div className={styles.panelFoot}>{footer}</div>}
     </div>
@@ -106,9 +105,18 @@ export function ExplorerPanel() {
   const createFile = useWorkbench((state) => state.createFile);
   const deleteFile = useWorkbench((state) => state.deleteFile);
   const renameFile = useWorkbench((state) => state.renameFile);
-  const showToast = useWorkbench((state) => state.showToast);
+  const lintReport = useWorkbench((state) => state.lintReport);
   const version = getVersion(project.versionId);
   const tree = useMemo(() => buildTree(project.files), [project.files]);
+  const unusedPaths = useMemo(
+    () =>
+      new Set(
+        lintReport.diagnostics
+          .filter((diagnostic) => diagnostic.code === "unused-function")
+          .map((diagnostic) => diagnostic.path),
+      ),
+    [lintReport],
+  );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const activeNamespace = useMemo(() => {
@@ -168,10 +176,12 @@ export function ExplorerPanel() {
     if (node.file) {
       const kind = fileKind(node.path);
       const isActive = activePath === node.path;
+      const unused = unusedPaths.has(node.path);
       return (
         <div
           key={node.path}
-          className={`${styles.treeRow} ${isActive ? styles.treeRowActive : ""}`}
+          className={`${styles.treeRow} ${isActive ? styles.treeRowActive : ""} ${unused ? styles.treeRowUnused : ""}`}
+          title={unused ? "Function is never called by this pack" : undefined}
           style={{ paddingLeft: 8 + depth * 13 }}
           onClick={() => openFile(node.path)}
           role="button"
@@ -184,6 +194,7 @@ export function ExplorerPanel() {
             {kind === "mcfunction" ? "ƒ" : kind === "json" ? "{}" : "π"}
           </span>
           <span className={styles.treeName}>{node.name}</span>
+          {unused && <span className={styles.treeWarn} aria-label="Unused function">△</span>}
           <span className={styles.treeActions}>
             <button type="button" aria-label={`Rename ${node.path}`} onClick={(event) => { event.stopPropagation(); rename(node.path); }}>
               ✎
@@ -227,98 +238,47 @@ export function ExplorerPanel() {
   };
 
   return (
-    <PanelShell
-      title="Explorer"
-      subtitle={`${Object.keys(project.files).length} files`}
-      actions={
-        <>
-          <button type="button" className={styles.iconButton} title="New function" onClick={addFunction}>+ƒ</button>
-          <button type="button" className={styles.iconButton} title="New file" onClick={addFile}>+</button>
-        </>
-      }
-      footer={
-        <div className={styles.explorerFoot}>
-          <button type="button" onClick={addFunction}>+ function</button>
-          <button type="button" onClick={addTag}>+ tag</button>
-        </div>
-      }
-    >
-      <div className={styles.packMeta}>
-        <span className={styles.packDot} />
-        <span className={styles.packName}>{project.name}</span>
-        <span className={styles.packVersion}>{version.id}</span>
-      </div>
+    <div className={`${styles.panel} ${styles.explorerPanel}`}>
       <div className={styles.tree}>{renderNode(tree, 0)}</div>
-      <div className={styles.explorerHint}>
-        <span>Autosaved to this browser</span>
+      <div className={styles.explorerFoot}>
+        <span className={styles.explorerActions}>
+          <button type="button" onClick={addFunction}>+ function</button>
+          <button type="button" onClick={addFile}>+ file</button>
+          <button type="button" onClick={addTag}>+ tag</button>
+        </span>
         <span>{formatPackFormat(version.packFormat)}</span>
       </div>
-    </PanelShell>
+    </div>
   );
 }
-
 /* ------------------------------------------------------------------ */
 /* Code                                                               */
 /* ------------------------------------------------------------------ */
-export function CodePanel() {
+export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
   const project = useWorkbench((state) => state.project);
   const activePath = useWorkbench((state) => state.activePath);
-  const openTabs = useWorkbench((state) => state.openTabs);
-  const openFile = useWorkbench((state) => state.openFile);
-  const closeTab = useWorkbench((state) => state.closeTab);
   const updateFile = useWorkbench((state) => state.updateFile);
   const runActive = useWorkbench((state) => state.runActive);
   const showToast = useWorkbench((state) => state.showToast);
-  const version = getVersion(project.versionId);
   const content = project.files[activePath];
-  const fnId = activePath ? functionPathOf(activePath, project.versionId) : null;
+
+  useEffect(() => {
+    panelApi?.setTitle(activePath ? displayNameForFile(activePath) : "Editor");
+  }, [activePath, panelApi]);
 
   if (!activePath || content === undefined) {
     return (
-      <PanelShell title="Editor" subtitle="no file open">
+      <div className={styles.panel}>
         <EmptyState
           title="Nothing open"
-          body="Pick a function in the Explorer, or create a new one. F5 runs the load tag."
+          body="Pick a file in the Explorer, or create one from the File menu."
         />
-      </PanelShell>
+      </div>
     );
   }
 
   return (
     <div className={`${styles.panel} ${styles.editorPanel}`}>
-      <div className={styles.editorTabs}>
-        {openTabs.map((tab) => (
-          <div
-            key={tab}
-            className={`${styles.editorTab} ${tab === activePath ? styles.editorTabActive : ""}`}
-            onClick={() => openFile(tab)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") openFile(tab);
-            }}
-          >
-            <span className={styles.fileIcon}>{tab.endsWith(".json") || tab.endsWith(".mcmeta") ? "{}" : "ƒ"}</span>
-            <span>{displayNameForFile(tab)}</span>
-            <button
-              type="button"
-              aria-label={`Close ${tab}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                closeTab(tab);
-              }}
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className={styles.editorBreadcrumb}>
-        <span className={styles.crumbPath}>{activePath.split("/").slice(0, -1).join(" / ")}</span>
-        <span className={styles.crumbName}>{displayNameForFile(activePath)}</span>
-        {fnId && <span className={styles.crumbId}>{fnId}</span>}
-        <span className={styles.crumbVersion}>{version.id}</span>
-      </div>
       <div className={styles.editorHost}>
         <CodeEditor
           key={activePath}
@@ -328,12 +288,6 @@ export function CodePanel() {
           onRun={runActive}
           onSave={() => showToast("Saved to this browser", "success")}
         />
-      </div>
-      <div className={styles.editorFoot}>
-        <span><kbd>Ctrl</kbd> <kbd>Space</kbd> complete</span>
-        <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> run function</span>
-        <span><kbd>Ctrl</kbd> <kbd>K</kbd> palette</span>
-        <span className={styles.editorFootRight}>mcfunction · {version.functionFolder}/</span>
       </div>
     </div>
   );
@@ -346,25 +300,9 @@ export function PreviewPanel() {
   const { sim, world, revision } = useWorldSnapshot();
   const selected = useWorkbench((state) => state.selectedEntity);
   const selectEntity = useWorkbench((state) => state.selectEntity);
-  const runDemo = useWorkbench((state) => state.runDemo);
-  const { openPanel } = useWorkspace();
 
   return (
     <div className={`${styles.panel} ${styles.previewPanel}`}>
-      <div className={styles.panelHead}>
-        <div className={styles.panelTitle}>
-          <span>World preview</span>
-          <span className={styles.panelSubtitle}>{world.entities.length} entities · no AI</span>
-        </div>
-        <div className={styles.panelActions}>
-          <button type="button" className={styles.textButton} onClick={() => openPanel("entities")}>
-            Inspect
-          </button>
-          <button type="button" className={styles.textButton} onClick={runDemo}>
-            Run demo
-          </button>
-        </div>
-      </div>
       <div className={styles.previewBody}>
         <WorldView
           world={world}
@@ -375,8 +313,8 @@ export function PreviewPanel() {
         />
       </div>
       <div className={styles.panelFoot}>
-        <span>{sim.version.label}</span>
-        <span>{world.entities.length} entities</span>
+        <span>{sim.version.id}</span>
+        <span>{world.entities.length} {world.entities.length === 1 ? "entity" : "entities"}</span>
         <span>{world.titles.title ? "title active" : "no title"}</span>
         <span className={styles.panelFootRight}>drag · zoom · click</span>
       </div>
@@ -421,22 +359,12 @@ export function ConsolePanel() {
 
   return (
     <div className={`${styles.panel} ${styles.consolePanel}`}>
-      <div className={styles.panelHead}>
-        <div className={styles.panelTitle}>
-          <span>Console</span>
-          <span className={styles.panelSubtitle}>source: {world.player() ? entityCustomName(world.player()!) : "server"}</span>
-        </div>
-        <div className={styles.panelActions}>
-          <button type="button" className={styles.textButton} onClick={clearConsole}>Clear</button>
-          <span className={styles.consoleStatus}><span className="dot" /> running</span>
-        </div>
-      </div>
       <div className={styles.consoleBody}>
         <div className={styles.consoleOut} ref={scrollRef}>
           {logs.length === 0 && (
             <div className={styles.consoleWelcome}>
               <span>cmdlib console · {sim.version.id}</span>
-              <p>Type a command. Try <code>/function cmdlib:demo</code> or <code>/data get storage cmdlib:board</code>.</p>
+              <p>Type a Minecraft command below.</p>
             </div>
           )}
           {logs.map((entry) => (
@@ -456,17 +384,6 @@ export function ConsolePanel() {
             </div>
           ))}
         </div>
-        <div className={styles.consoleHints}>
-          {[
-            "function cmdlib:demo",
-            "data get storage cmdlib:board quest",
-            "scoreboard players get @s points",
-          ].map((hint) => (
-            <button key={hint} type="button" onClick={() => setValue(hint)}>
-              {hint}
-            </button>
-          ))}
-        </div>
         <form className={styles.consoleForm} onSubmit={submit}>
           <span className={styles.consolePrompt}>/</span>
           <input
@@ -481,12 +398,13 @@ export function ConsolePanel() {
                 history(1);
               }
             }}
-            placeholder="scoreboard players set @s points 100"
+            placeholder="say hello"
             spellCheck={false}
             aria-label="Minecraft command"
             autoComplete="off"
           />
-          <button type="submit" className={styles.consoleRun}>Run ↵</button>
+          <button type="submit" className={styles.consoleRun}>Run</button>
+          <button type="button" className={styles.consoleClear} onClick={clearConsole}>clear</button>
         </form>
       </div>
     </div>
@@ -665,14 +583,13 @@ export function EntitiesPanel() {
 
   return (
     <div className={`${styles.panel} ${styles.entitiesPanel}`}>
-      <div className={styles.panelHead}>
-        <div className={styles.panelTitle}>
-          <span>Entities</span>
-          <span className={styles.panelSubtitle}>{entities.length} in world · static</span>
-        </div>
-        <div className={styles.panelActions}>
-          {selected && <button type="button" className={styles.textButton} onClick={() => selectEntity(null)}>Clear</button>}
-        </div>
+      <div className={styles.panelBar}>
+        <span className={styles.panelSubtitle}>{entities.length} entities · static</span>
+        {selected && (
+          <button type="button" className={styles.textButton} onClick={() => selectEntity(null)}>
+            clear
+          </button>
+        )}
       </div>
       <div className={styles.entitiesBody}>
         <div className={styles.entityList}>
@@ -731,7 +648,12 @@ export function ProblemsPanel() {
   const showToast = useWorkbench((state) => state.showToast);
   const [filter, setFilter] = useState<SeverityFilter>("all");
 
-  const diagnostics = report.diagnostics.filter((entry) =>
+  // Unused functions are surfaced on the Explorer file row, not here.
+  const visibleDiagnostics = report.diagnostics.filter(
+    (entry) => entry.code !== "unused-function",
+  );
+
+  const diagnostics = visibleDiagnostics.filter((entry) =>
     filter === "all"
       ? true
       : filter === "info"
@@ -783,7 +705,7 @@ export function ProblemsPanel() {
             className={`${styles.filterChip} ${filter === value ? styles.filterChipActive : ""}`}
             onClick={() => setFilter(value)}
           >
-            {value} <span>{value === "all" ? report.diagnostics.length : report.diagnostics.filter((d) => d.severity === value).length}</span>
+            {value} <span>{value === "all" ? visibleDiagnostics.length : visibleDiagnostics.filter((d) => d.severity === value).length}</span>
           </button>
         ))}
       </div>

@@ -171,21 +171,6 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
         to: Math.max(1, lines[0]?.length ?? 1),
       });
     }
-    if (content.trim().length === 0) {
-      report({
-        path: fn.path,
-        severity: "warning",
-        code: "empty-function",
-        message: "This function has no commands.",
-        line: 1,
-        column: 1,
-        endLine: 1,
-        endColumn: 1,
-        from: 0,
-        to: 0,
-      });
-    }
-
     for (let lineIndex = 0; lineIndex < lines.length && !stopped; lineIndex++) {
       const raw = lines[lineIndex];
       const trimmed = raw.trim();
@@ -865,6 +850,5 @@ export const LINT_CODES: Record<string, string> = {
   "invalid-folder": "Folder names changed in 1.21 (functions → function).",
   "unused-function": "The function is not referenced by a tag or another function.",
   "undisplayed-objective": "The objective is declared but not displayed or read.",
-  "empty-function": "The function file has no commands.",
   "tag-cycle": "A function tag includes itself.",
 };

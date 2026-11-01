@@ -201,16 +201,6 @@ export class Simulator implements Runtime {
     return this.runScript(source);
   }
 
-  runDemo(): RunOutcome {
-    const demo = [...this.world.functions.keys()].find((id) => id.endsWith(":demo"));
-    if (!demo) {
-      const message = "No function ending in ':demo' exists in this pack";
-      this.world.log("error", message);
-      this.touch();
-      return { result: 0, success: false, ok: false, error: message };
-    }
-    return this.runCommand(`function ${demo}`);
-  }
 
   /** Runtime interface used by the /function command. */
   runFunction(

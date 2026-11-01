@@ -6,7 +6,7 @@ import styles from "./editor.module.css";
 
 const TABS: Array<{ id: MobilePanel; label: string }> = [
   { id: "explorer", label: "Files" },
-  { id: "editor", label: "Editor" },
+  { id: "editor", label: "Code" },
   { id: "preview", label: "World" },
   { id: "console", label: "Console" },
   { id: "problems", label: "Problems" },

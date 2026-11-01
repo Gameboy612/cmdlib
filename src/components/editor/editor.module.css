@@ -40,8 +40,8 @@
   --dv-activegroup-hiddenpanel-tab-color: #7f8791;
   --dv-inactivegroup-visiblepanel-tab-color: #9aa0a7;
   --dv-inactivegroup-hiddenpanel-tab-color: #656d75;
-  --dv-tabs-and-actions-container-height: 33px;
-  --dv-tab-font-size: 11px;
+  --dv-tabs-and-actions-container-height: 29px;
+  --dv-tab-font-size: 8.5px;
   --dv-tab-border-radius: 0;
   --dv-tab-margin: 0;
   --dv-separator-border: 1px solid #1e242b;
@@ -58,7 +58,7 @@
 .dock :global(.dv-tab) {
   font-family: var(--mono);
   letter-spacing: 0.01em;
-  padding: 0 12px;
+  padding: 0 7px;
   border-right: 1px solid rgba(233, 229, 220, 0.05);
 }
 .dock :global(.dv-tab.dv-active-tab) { box-shadow: inset 0 -1px 0 var(--accent); }
@@ -91,19 +91,19 @@
 /* Toolbar                                                            */
 /* ------------------------------------------------------------------ */
 .toolbar {
-  height: 48px;
+  height: 42px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 10px 0 12px;
+  padding: 0 8px 0 10px;
   background: #0c0f13;
   border-bottom: 1px solid #1d232b;
   position: relative;
   z-index: 20;
 }
-.toolbarLeft, .toolbarCenter, .toolbarRight { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.toolbarLeft, .toolbarCenter, .toolbarRight { display: flex; align-items: center; gap: 3px; min-width: 0; }
 .toolbarBrand {
   width: 28px;
   height: 28px;
@@ -113,19 +113,58 @@
   flex: none;
 }
 .toolbarBrand:hover { background: rgba(255, 255, 255, 0.06); }
-.toolbarDivider { width: 1px; height: 18px; background: #232a32; margin: 0 4px; flex: none; }
+.toolbarDivider { width: 1px; height: 16px; background: #232a32; margin: 0 6px; flex: none; }
+.menubar { display: flex; align-items: center; gap: 1px; height: 100%; }
+.menuRoot { position: relative; }
+.menuTrigger {
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.menuTrigger:hover, .menuTriggerOpen { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 196px;
+  padding: 4px;
+  border: 1px solid #2a3139;
+  border-radius: 7px;
+  background: #12161b;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  z-index: 80;
+}
+.menuItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: left;
+  white-space: nowrap;
+}
+.menuItem:hover { background: rgba(255, 122, 69, 0.12); color: var(--text); }
+.menuHint { font-family: var(--mono); font-size: 7.5px; color: var(--faint); }
+.menuRule { height: 1px; background: #252c34; margin: 4px 2px; }
 .projectName {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
   padding: 4px 7px;
   border-radius: 5px;
   white-space: nowrap;
-  max-width: 210px;
+  max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -172,10 +211,10 @@
 .runButton {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 5px;
+  gap: 6px;
+  height: 27px;
+  padding: 0 10px;
+  border-radius: 4px;
   background: var(--accent);
   color: #1a0e08;
   font-family: var(--mono);
@@ -186,14 +225,6 @@
 }
 .runButton:hover { background: var(--accent-strong); }
 .runButton span { font-size: 8px; }
-.runButton kbd {
-  font-family: var(--mono);
-  font-size: 7.5px;
-  background: rgba(0, 0, 0, 0.16);
-  border-radius: 2px;
-  padding: 1px 4px;
-  opacity: 0.7;
-}
 .toolButton {
   display: inline-flex;
   align-items: center;
@@ -243,12 +274,13 @@
 .menu button:hover { background: rgba(255, 122, 69, 0.12); color: var(--text); }
 .menuSeparator { display: block; height: 1px; background: #252c34; margin: 5px 0; }
 .paletteButton {
-  height: 28px;
+  height: 26px;
   padding: 0 8px;
   border: 1px solid #232a32;
-  border-radius: 5px;
+  border-radius: 4px;
   font-family: var(--mono);
   font-size: 8px;
+  letter-spacing: 0.03em;
   color: var(--faint);
   background: #101419;
 }
@@ -269,7 +301,7 @@
 /* Status bar                                                         */
 /* ------------------------------------------------------------------ */
 .statusBar {
-  height: 23px;
+  height: 21px;
   flex: none;
   display: flex;
   align-items: center;
@@ -279,7 +311,7 @@
   background: #0c0f13;
   border-top: 1px solid #1d232b;
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 8px;
   color: var(--faint);
 }
 .statusLeft, .statusRight { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -301,6 +333,17 @@
   flex-direction: column;
   background: #0b0e11;
   color: var(--text);
+}
+.panelBar {
+  flex: none;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid #1e242b;
+  background: #0d1115;
 }
 .panelHead {
   flex: none;
@@ -324,7 +367,8 @@
 }
 .panelSubtitle {
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 7.5px;
+  letter-spacing: 0.02em;
   color: var(--faint);
   white-space: nowrap;
   overflow: hidden;
@@ -334,14 +378,14 @@
 .panelBody { flex: 1; min-height: 0; overflow: auto; position: relative; }
 .panelFoot {
   flex: none;
-  height: 24px;
+  height: 21px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 0 12px;
+  gap: 12px;
+  padding: 0 10px;
   border-top: 1px solid #1a2027;
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 7.5px;
   color: var(--faint);
   background: #0c1014;
   white-space: nowrap;
@@ -408,7 +452,7 @@
 .packDot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex: none; }
 .packName { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .packVersion { margin-left: auto; font-size: 7.5px; color: var(--gold); border: 1px solid rgba(233, 201, 143, 0.2); border-radius: 3px; padding: 1px 4px; }
-.tree { padding: 5px 0; font-family: var(--mono); font-size: 10px; }
+.tree { flex: 1; min-height: 0; overflow: auto; padding: 4px 0; font-family: var(--mono); font-size: 9.5px; }
 .treeFolder, .treeRow {
   height: 23px;
   display: flex;
@@ -421,6 +465,9 @@
 }
 .treeFolder:hover, .treeRow:hover { background: rgba(255, 255, 255, 0.045); color: var(--text-dim); }
 .treeRowActive { background: rgba(255, 122, 69, 0.1); color: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+.treeRowUnused .fileIcon { color: var(--warn); }
+.treeWarn { margin-left: auto; color: var(--warn); font-size: 8px; padding-right: 4px; }
+.treeWarn + .treeActions { margin-left: 0; }
 .treeChevron { width: 10px; font-size: 8px; color: #5f6871; flex: none; }
 .folderIcon { color: #8a8f96; font-size: 8px; }
 .treeName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -447,126 +494,36 @@
   place-items: center;
 }
 .treeActions button:hover { background: rgba(255, 255, 255, 0.09); color: var(--text); }
-.explorerHint {
-  padding: 9px 11px;
-  border-top: 1px solid #1a2027;
+.explorerPanel { height: 100%; }
+.explorerFoot {
+  flex: none;
+  height: 23px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+  padding: 0 9px;
+  border-top: 1px solid #1a2027;
+  background: #0c1014;
   font-family: var(--mono);
-  font-size: 7.5px;
+  font-size: 7px;
   color: var(--faint);
 }
-.explorerFoot { display: flex; gap: 10px; }
-.explorerFoot button { font-family: var(--mono); font-size: 8px; color: var(--faint); }
+.explorerActions { display: flex; gap: 9px; }
+.explorerFoot button { font-family: var(--mono); font-size: 7.5px; color: var(--faint); }
 .explorerFoot button:hover { color: var(--accent-soft); }
 
 /* ------------------------------------------------------------------ */
 /* Code                                                               */
 /* ------------------------------------------------------------------ */
 .editorPanel { height: 100%; }
-.editorTabs {
-  flex: none;
-  height: 33px;
-  display: flex;
-  align-items: stretch;
-  overflow-x: auto;
-  border-bottom: 1px solid #1e242b;
-  background: #0c1014;
-  scrollbar-width: none;
-}
-.editorTabs::-webkit-scrollbar { display: none; }
-.editorTab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 9px;
-  border-right: 1px solid #1a2027;
-  font-family: var(--mono);
-  font-size: 9.5px;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-  max-width: 190px;
-}
-.editorTab > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
-.editorTab:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-dim); }
-.editorTabActive { background: #141920; color: var(--text); box-shadow: inset 0 -1px 0 var(--accent); }
-.editorTab button { color: var(--faint); font-size: 11px; padding: 0 2px; }
-.editorTab button:hover { color: var(--danger); }
-.editorBreadcrumb {
-  flex: none;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border-bottom: 1px solid #181e25;
-  background: #0b0f13;
-  font-family: var(--mono);
-  font-size: 8px;
-  color: var(--faint);
-  overflow: hidden;
-  white-space: nowrap;
-}
-.crumbPath { overflow: hidden; text-overflow: ellipsis; }
-.crumbName { color: var(--text-dim); }
-.crumbId { color: var(--patina); border-left: 1px solid #252c34; padding-left: 8px; }
-.crumbVersion { margin-left: auto; color: var(--gold); }
 .editorHost { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 .editorHost :global(.editor-host) { height: 100%; }
 .editorHost :global(.cm-editor) { height: 100%; }
 .editorHost :global(.cm-scroller) { height: 100%; }
-.editorFoot {
-  flex: none;
-  height: 23px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 12px;
-  border-top: 1px solid #1a2027;
-  background: #0c1014;
-  font-family: var(--mono);
-  font-size: 7.5px;
-  color: var(--faint);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.editorFoot kbd {
-  font-family: var(--mono);
-  font-size: 7px;
-  border: 1px solid #29313a;
-  border-radius: 2px;
-  padding: 0 3px;
-  margin-right: 1px;
-}
-.editorFootRight { margin-left: auto; }
-
-/* ------------------------------------------------------------------ */
-/* Preview                                                            */
-/* ------------------------------------------------------------------ */
 .previewPanel { height: 100%; }
 .previewBody { flex: 1; min-height: 0; position: relative; }
 .previewBody > div:first-child { height: 100%; }
-.previewHint {
-  position: absolute;
-  left: 50%;
-  bottom: 28px;
-  transform: translateX(-50%);
-  max-width: 80%;
-  font-family: var(--mono);
-  font-size: 7.5px;
-  color: var(--faint);
-  background: rgba(8, 10, 12, 0.6);
-  border: 1px solid rgba(233, 229, 220, 0.08);
-  border-radius: 3px;
-  padding: 2px 6px;
-  pointer-events: none;
-}
-
-/* ------------------------------------------------------------------ */
-/* Console                                                            */
-/* ------------------------------------------------------------------ */
 .consolePanel { height: 100%; }
 .consolePanel .panelBody { padding: 0; overflow: hidden; }
 .consoleStatus {
@@ -634,16 +591,16 @@
 .consoleForm input::placeholder { color: #4f575f; }
 .consoleRun { font-family: var(--mono); font-size: 8px; color: var(--faint); padding: 2px 6px; border: 1px solid #29313a; border-radius: 3px; }
 .consoleRun:hover { color: var(--accent-soft); border-color: rgba(255, 122, 69, 0.4); }
-.consoleHints { flex: none; display: flex; gap: 5px; padding: 4px 12px 5px; background: #0c1014; border-top: 1px solid #171d23; flex-wrap: wrap; }
-.consoleHints button {
-  font-family: var(--mono);
-  font-size: 7px;
-  color: var(--faint);
-  border: 1px solid #20272e;
+.consoleClear {
+  margin-left: 2px;
+  padding: 2px 6px;
+  border: 1px solid #29313a;
   border-radius: 3px;
-  padding: 2px 5px;
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--faint);
 }
-.consoleHints button:hover { color: var(--patina); border-color: rgba(121, 217, 198, 0.3); }
+.consoleClear:hover { color: var(--danger); border-color: rgba(255, 107, 94, 0.35); }
 
 /* ------------------------------------------------------------------ */
 /* Scoreboards                                                        */
@@ -1048,7 +1005,7 @@
 /* Responsive                                                         */
 /* ------------------------------------------------------------------ */
 @media (max-width: 900px) {
-  .previewHint { display: none; }
+  .menubar { display: none; }
   .toolbarCenter { display: none; }
   .mobileRun {
     display: inline-grid;

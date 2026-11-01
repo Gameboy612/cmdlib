@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { redo, selectAll, undo } from "@codemirror/commands";
+import { openSearchPanel } from "@codemirror/search";
 import { createEditorExtensions } from "@/lib/editor/setup";
 import { lintProject } from "@/lib/lint";
 import { getVersion } from "@/lib/mc/version";
@@ -100,6 +102,43 @@ export function CodeEditor({
       changes: { from: 0, to: view.state.doc.length, insert: value },
     });
   }, [value]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const view = viewRef.current;
+      if (!view) return;
+      const command = (event as CustomEvent<string>).detail;
+      view.focus();
+      switch (command) {
+        case "undo":
+          undo(view);
+          break;
+        case "redo":
+          redo(view);
+          break;
+        case "find":
+          openSearchPanel(view);
+          break;
+        case "selectAll":
+          selectAll(view);
+          break;
+        case "copy":
+        case "cut": {
+          const range = view.state.selection.main;
+          const text = range.empty
+            ? view.state.doc.lineAt(range.head).text
+            : view.state.sliceDoc(range.from, range.to);
+          void navigator.clipboard?.writeText(text);
+          if (command === "cut" && !range.empty) {
+            view.dispatch({ changes: { from: range.from, to: range.to, insert: "" } });
+          }
+          break;
+        }
+      }
+    };
+    window.addEventListener("cmdlib:editor-command", handler);
+    return () => window.removeEventListener("cmdlib:editor-command", handler);
+  }, []);
 
   useEffect(() => {
     const view = viewRef.current;

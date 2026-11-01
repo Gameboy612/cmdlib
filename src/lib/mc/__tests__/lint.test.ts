@@ -1,18 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { createProject } from "../datapack";
+import { createDemoProject } from "./fixtures";
 import { lintProject, toLspDiagnostics } from "../../lint";
 import { getVersion } from "../version";
+import { createProject } from "../datapack";
 
 describe("linter", () => {
   it("accepts the starter pack", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     const report = lintProject(project);
     expect(report.errors).toBe(0);
     expect(report.filesLinted).toBeGreaterThanOrEqual(4);
   });
 
+  it("keeps the new load/tick starter quiet", () => {
+    const report = lintProject(createProject("26.3"));
+    expect(report.errors).toBe(0);
+    expect(report.warnings).toBe(0);
+  });
+
   it("catches unknown objectives, functions and macro arguments", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     project.files["data/cmdlib/function/broken.mcfunction"] = [
       "scoreboard players add @s missing 1",
       "function cmdlib:does_not_exist",
@@ -29,7 +36,7 @@ describe("linter", () => {
   });
 
   it("validates pack formats and legacy folders", () => {
-    const project = createProject("1.20.4");
+    const project = createDemoProject("1.20.4");
     // createProject builds the correct legacy layout; now break the metadata.
     project.files["pack.mcmeta"] = JSON.stringify({ pack: { pack_format: 999, description: "x" } });
     const report = lintProject(project);
@@ -37,7 +44,7 @@ describe("linter", () => {
   });
 
   it("reports version-gated commands", () => {
-    const project = createProject("1.20.4");
+    const project = createDemoProject("1.20.4");
     project.files["data/cmdlib/functions/version.mcfunction"] = [
       "compute default integer 1",
       "execute if items block ~ ~ ~ slot.weapon mainhand *",
@@ -48,7 +55,7 @@ describe("linter", () => {
   });
 
   it("emits LSP-compatible diagnostics", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     project.files["data/cmdlib/function/broken.mcfunction"] = "scoreboard players add @s nope 1";
     const report = lintProject(project);
     const lsp = toLspDiagnostics(report.diagnostics) as Array<{ range: unknown; severity: number }>;
@@ -57,7 +64,7 @@ describe("linter", () => {
   });
 
   it("keeps unsupported commands as warnings, not errors", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     project.files["data/cmdlib/function/other.mcfunction"] = "give @s minecraft:stone 1";
     const report = lintProject(project);
     const diag = report.diagnostics.find((d) => d.code === "unsupported-command");

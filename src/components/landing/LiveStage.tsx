@@ -153,7 +153,7 @@ export function LiveStage() {
           <div className={styles.runGrid}>
             <div className={styles.runCodePanel}>
               <div className={styles.runCodeChrome}>
-                <span className={styles.windowTab}>cmdlib:demo.mcfunction</span>
+                <span className={styles.windowTab}>landing:steps.mcfunction</span>
                 <span className={styles.runTick}>tick {executed}</span>
               </div>
               <div className={styles.runLines}>

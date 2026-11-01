@@ -45,11 +45,12 @@ path as well.
 
 Open `/editor/`. The starter pack is already loaded:
 
-1. **Run (F5)** reloads the pack and runs `#minecraft:load`.
-2. **Demo** runs `cmdlib:demo`, which exercises scoreboards, titles, macros,
-   storage and `execute store`.
-3. Type in the console, e.g. `data get storage cmdlib:board quest`.
-4. `Ctrl/Cmd + K` opens the command palette.
+1. **Run** reloads the pack and runs `#minecraft:load`.
+2. Write commands into `load.mcfunction`; `tick.mcfunction` is the second
+   scaffolded file, wired to the `minecraft:tick` tag.
+3. Type a command in the console, for example `say hello`.
+4. The command palette is available from the top-right *Palette* button or
+   `Ctrl/Cmd + K`.
 5. `Ctrl/Cmd + Space` opens autocomplete.
 
 Everything is stored in `localStorage`. **Export** writes a standard datapack

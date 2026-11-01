@@ -28,7 +28,6 @@ export function CommandPalette() {
     const state = useWorkbench.getState();
     const base: Action[] = [
       { id: "run-load", label: "Run load tags", hint: "F5", group: "Runtime", keywords: "reload reset boot", run: state.runLoad },
-      { id: "run-demo", label: "Run the demo function", group: "Runtime", keywords: "demo example", run: state.runDemo },
       { id: "run-file", label: "Run the active function", hint: "⌘↵", group: "Runtime", keywords: "execute", run: state.runActive },
       { id: "export", label: "Export pack as .zip", group: "Pack", keywords: "download save", run: state.exportZip },
       { id: "new-project", label: "Start a new pack", group: "Pack", keywords: "reset create", run: state.newProject },

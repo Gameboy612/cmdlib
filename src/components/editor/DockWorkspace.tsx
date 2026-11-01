@@ -22,7 +22,7 @@ import { asset } from "@/lib/base-path";
 
 const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
   explorer: () => <ExplorerPanel />,
-  editor: () => <CodePanel />,
+  editor: (props) => <CodePanel panelApi={props.api} />,
   preview: () => <PreviewPanel />,
   console: () => <ConsolePanel />,
   scoreboard: () => <ScoreboardPanel />,
@@ -34,10 +34,10 @@ const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> =
 
 const PANEL_META: Record<string, { title: string; component: string }> = {
   explorer: { title: "Explorer", component: "explorer" },
-  editor: { title: "Editor", component: "editor" },
-  preview: { title: "World preview", component: "preview" },
+  editor: { title: "Code", component: "editor" },
+  preview: { title: "Preview", component: "preview" },
   console: { title: "Console", component: "console" },
-  scoreboard: { title: "Scoreboards", component: "scoreboard" },
+  scoreboard: { title: "Scores", component: "scoreboard" },
   storage: { title: "Storage", component: "storage" },
   entities: { title: "Entities", component: "entities" },
   problems: { title: "Problems", component: "problems" },
@@ -112,8 +112,8 @@ export function DockWorkspace() {
     if (!restored) {
       buildDefaultLayout(dock);
       const applySizes = () => {
-        dock.getPanel("explorer")?.api.setSize({ width: 236 });
-        dock.getPanel("preview")?.api.setSize({ width: 470 });
+        dock.getPanel("explorer")?.api.setSize({ width: 224 });
+        dock.getPanel("preview")?.api.setSize({ width: 440 });
         dock.getEdgeGroup("bottom")?.setSize({ height: 210 });
       };
       requestAnimationFrame(applySizes);
@@ -160,20 +160,10 @@ function buildDefaultLayout(api: DockviewApi): void {
   api.addPanel({
     id: "preview",
     component: "preview",
-    title: "World preview",
+    title: "Preview",
     position: { referencePanel: "editor", direction: "right" },
     initialWidth: 480,
   });
-  for (const id of ["scoreboard", "storage", "entities", "problems", "reference"]) {
-    api.addPanel({
-      id,
-      component: id,
-      title: PANEL_META[id].title,
-      position: { referencePanel: "preview", direction: "within" },
-      inactive: true,
-    });
-  }
-
   // The console belongs to a full-width bottom edge group. If the build of
   // dockview does not support edge groups, fall back to a normal bottom split.
   try {
@@ -206,8 +196,11 @@ function buildDefaultLayout(api: DockviewApi): void {
   }
 }
 
+const CORE_PANELS = ["explorer", "editor", "preview", "console"];
+
 function ensurePanels(api: DockviewApi): void {
-  for (const [id, meta] of Object.entries(PANEL_META)) {
+  for (const id of CORE_PANELS) {
+    const meta = PANEL_META[id];
     if (api.getPanel(id)) continue;
     if (id === "console") {
       const edgeApi = api.getEdgeGroup("bottom");

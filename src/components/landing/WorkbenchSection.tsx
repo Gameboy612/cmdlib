@@ -140,7 +140,7 @@ export function WorkbenchSection() {
               <span className={styles.deskConsoleNote}>run any command</span>
             </div>
             <div className={styles.deskConsole}>
-              <div><span className={styles.consolePrompt}>/</span> function cmdlib:demo</div>
+              <div><span className={styles.consolePrompt}>/</span> function cmdlib:load</div>
               <div className={styles.consoleOut}>Storage cmdlib:stats has the following contents: &#123;claims: 0, total: 300&#125;</div>
               <div><span className={styles.consolePrompt}>/</span> data get storage cmdlib:board quest</div>
               <div className={styles.consoleOut}>Storage cmdlib:board has the following contents at path &apos;quest&apos;: &#123;id: &quot;wither_hunt&quot;, reward: 250&#125;</div>

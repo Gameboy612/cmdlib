@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseSnbt, tryParseSnbt } from "../snbt";
 import { getPathValues, parseNbtPath, applyPathModify } from "../nbtPath";
 import { isCompound, stringifySnbt, Tag } from "../nbt";
-import { createProject } from "../datapack";
+import { createDemoProject } from "./fixtures";
 import { Simulator } from "../simulator";
 import { getVersion } from "../version";
 import { parseTextComponent } from "../snbt";
@@ -66,7 +66,7 @@ describe("text components", () => {
 
 describe("simulator", () => {
   it("loads the starter pack", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     const sim = new Simulator({ project });
     sim.reset();
     expect(sim.world.getObjective("points")).toBeTruthy();
@@ -81,7 +81,7 @@ describe("simulator", () => {
   });
 
   it("runs the full demo including macros, storage and execute store", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     const sim = new Simulator({ project });
     sim.reset();
     const outcome = sim.runCommand("function cmdlib:demo");
@@ -101,7 +101,7 @@ describe("simulator", () => {
   });
 
   it("supports scoreboard operations and titles", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     const sim = new Simulator({ project });
     sim.reset();
     sim.runCommand("scoreboard players set @s points 10");
@@ -115,7 +115,7 @@ describe("simulator", () => {
   });
 
   it("edits storage with data modify and reports with data get", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     const sim = new Simulator({ project });
     sim.reset();
     sim.runCommand("data modify storage test:store board set value {a:1}");
@@ -132,7 +132,7 @@ describe("simulator", () => {
   });
 
   it("models function macros through with storage", () => {
-    const project = createProject("26.3");
+    const project = createDemoProject("26.3");
     const sim = new Simulator({ project });
     sim.reset();
     sim.runCommand('data modify storage cmdlib:board quest set value {reward:42}');

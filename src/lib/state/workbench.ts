@@ -9,8 +9,8 @@ import { lintProject, type LintQuickFix, type LintReport } from "../lint";
 import { buildPackMeta, functionPath, getVersion, migrateFiles } from "../mc/version";
 import { downloadProject, readProjectZip } from "../io";
 
-const PROJECT_KEY = "cmdlib:project:v1";
-const LAYOUT_KEY = "cmdlib:layout:v1";
+const PROJECT_KEY = "cmdlib:project:v2";
+const LAYOUT_KEY = "cmdlib:layout:v2";
 const HISTORY_KEY = "cmdlib:history:v1";
 
 export type MobilePanel = "editor" | "preview" | "console" | "explorer" | "problems";
@@ -54,7 +54,6 @@ interface WorkbenchState {
   refreshLint: () => LintReport;
   runLoad: () => void;
   runActive: () => void;
-  runDemo: () => void;
   runCommand: (line: string) => void;
   clearConsole: () => void;
   applyQuickFix: (fix: LintQuickFix) => void;
@@ -340,11 +339,6 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     }
     const outcome = sim.runCommand(`function ${fn.id}`);
     if (outcome.ok) get().showToast(`Ran ${fn.id}`, "success");
-  },
-
-  runDemo: () => {
-    const outcome = get().sim.runDemo();
-    if (!outcome.ok) get().showToast(outcome.error ?? "Demo function failed", "error");
   },
 
   runCommand: (line) => {
