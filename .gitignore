@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.log
+.DS_Store
+*.tsbuildinfo
+test-results
+playwright-report
+public/og.png.tmp

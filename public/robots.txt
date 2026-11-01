@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://gameboy612.github.io/cmdlib/sitemap.xml

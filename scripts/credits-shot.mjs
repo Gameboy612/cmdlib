@@ -1,0 +1,11 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ executablePath: '/home/kapak/.cache/ms-playwright/chromium-1187/chrome-linux/chrome', args:['--no-sandbox'] });
+const page = await browser.newPage({ viewport:{width:1440,height:900} });
+await page.goto('http://127.0.0.1:4199/credits/', { waitUntil:'networkidle' });
+await page.evaluate(()=>window.scrollTo(0, 1500));
+await page.waitForTimeout(500);
+await page.screenshot({path:'/tmp/q-credits-mid.png'});
+await page.evaluate(()=>window.scrollTo(0, 2800));
+await page.waitForTimeout(500);
+await page.screenshot({path:'/tmp/q-credits-audit.png'});
+await browser.close();

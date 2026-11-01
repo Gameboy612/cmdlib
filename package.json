@@ -1,0 +1,43 @@
+{
+  "name": "cmdlib",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "A browser-native Minecraft datapack IDE with a simulated command runtime.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx serve out",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "notices": "node scripts/notices.mjs"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.19.1",
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/lint": "^6.9.1",
+    "@codemirror/search": "^6.5.11",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.6",
+    "@lezer/highlight": "^1.2.1",
+    "dockview": "^8.8.3",
+    "dockview-core": "^8.8.3",
+    "dockview-react": "^8.8.3",
+    "fflate": "^0.8.3",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "playwright-core": "^1.64.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "homepage": "https://gameboy612.github.io/cmdlib/"
+}

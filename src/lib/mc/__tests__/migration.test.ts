@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import { createProject, collectStorageIds } from "../datapack";
+import { getVersion, migrateFiles } from "../version";
+
+describe("version migration", () => {
+  it("renames folders and rewrites pack.mcmeta without a leading slash", () => {
+    const project = createProject("26.3");
+    const migrated = migrateFiles(
+      project.files,
+      getVersion("26.3"),
+      getVersion("1.20.4"),
+      project.name,
+    );
+    const paths = Object.keys(migrated);
+    expect(paths.some((p) => p.startsWith("/"))).toBe(false);
+    expect(paths).toContain("data/cmdlib/functions/load.mcfunction");
+    expect(paths).toContain("data/minecraft/tags/functions/load.json");
+    expect(JSON.parse(migrated["pack.mcmeta"]).pack.pack_format).toBe(26);
+  });
+
+  it("round-trips back to 26.3", () => {
+    const project = createProject("26.3");
+    const down = migrateFiles(
+      project.files,
+      getVersion("26.3"),
+      getVersion("1.20.4"),
+      project.name,
+    );
+    const up = migrateFiles(down, getVersion("1.20.4"), getVersion("26.3"), project.name);
+    expect(Object.keys(up)).toContain("data/cmdlib/function/demo.mcfunction");
+    expect(Object.keys(up)).toContain("data/minecraft/tags/function/load.json");
+    expect(JSON.parse(up["pack.mcmeta"]).pack.min_format).toEqual([121, 0]);
+  });
+
+  it("does not treat comment prose as a storage id", () => {
+    expect(collectStorageIds(createProject("26.3").files)).not.toContain("minecraft:compound.");
+  });
+});
