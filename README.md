@@ -28,15 +28,16 @@ npm test             # engine + lint + autocomplete tests
 
 ## Live site
 
-- **Site:** https://wankun.kapakki.com/cmdlib/
-- **GitHub Pages:** https://gameboy612.github.io/cmdlib/ (redirects to the account's Pages custom domain)
+- **Site:** https://cmdlib.kalalib.com/
+- **GitHub Pages:** https://gameboy612.github.io/cmdlib/ (redirects to the custom domain)
 - **Source:** https://github.com/Gameboy612/cmdlib
 
 The site is a static export deployed to the `gh-pages` branch by
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Because it is a
-GitHub project site, the workflow builds with
-`NEXT_PUBLIC_BASE_PATH=/cmdlib` and `NEXT_PUBLIC_SITE_URL=https://wankun.kapakki.com/cmdlib`.
-Local builds keep the root path.
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The project site
+uses the custom domain `cmdlib.kalalib.com`, which serves at the domain root, so
+the workflow builds with an empty base path and
+`NEXT_PUBLIC_SITE_URL=https://cmdlib.kalalib.com`. Local builds keep the root
+path as well.
 
 ---
 

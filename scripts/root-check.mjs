@@ -1,0 +1,17 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ executablePath: '/home/kapak/.cache/ms-playwright/chromium-1187/chrome-linux/chrome', args:['--no-sandbox'] });
+const page = await browser.newPage({ viewport:{width:1440,height:900} });
+const errors=[], failed=[];
+page.on('pageerror',e=>errors.push(e.message)); page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+page.on('response',r=>{if(r.status()>=400)failed.push([r.status(),r.url()])});
+await page.goto('http://127.0.0.1:4199/', {waitUntil:'networkidle'});
+await page.waitForTimeout(700);
+const home = await page.evaluate(()=>({title:document.title, fonts:[...document.fonts].filter(f=>f.status==='loaded').length, imgs:[...document.images].every(i=>i.complete&&i.naturalWidth>0), canonical:document.querySelector('link[rel=canonical]')?.href}));
+await page.getByRole('link',{name:/Open the editor/i}).first().click();
+await page.waitForTimeout(1600);
+const editor = await page.evaluate(()=>({path:location.pathname, cm:!!document.querySelector('.cm-editor')}));
+await page.getByRole('button',{name:'Demo', exact:true}).click();
+await page.waitForTimeout(700);
+const demo = await page.locator('text=BOUNTY CLAIMED').count();
+console.log(JSON.stringify({home,editor,demo,errors,failed},null,2));
+await browser.close();
