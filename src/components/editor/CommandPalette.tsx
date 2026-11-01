@@ -6,6 +6,8 @@ import { PANEL_LABELS, PANEL_ORDER } from "./panel-meta";
 import { VERSIONS } from "@/lib/mc/version";
 import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
+import { usePreferences } from "@/lib/state/preferences";
+import { formatBinding } from "@/lib/keybindings";
 
 interface Action {
   id: string;
@@ -19,6 +21,7 @@ interface Action {
 export function CommandPalette() {
   const open = useWorkbench((state) => state.paletteOpen);
   const setOpen = useWorkbench((state) => state.setPaletteOpen);
+  const keybindings = usePreferences((state) => state.keybindings);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -27,10 +30,12 @@ export function CommandPalette() {
   const actions = useMemo<Action[]>(() => {
     const state = useWorkbench.getState();
     const base: Action[] = [
-      { id: "run-load", label: "Run load tags", hint: "F5", group: "Runtime", keywords: "reload reset boot", run: state.runLoad },
-      { id: "run-file", label: "Run the active function", hint: "⌘↵", group: "Runtime", keywords: "execute", run: state.runActive },
+      { id: "run-load", label: "Run /reload", hint: formatBinding(keybindings.reload), group: "Runtime", keywords: "reload reset boot load tags", run: state.runLoad },
+      { id: "run-file", label: "Run the active function", hint: formatBinding(keybindings.runActive), group: "Runtime", keywords: "execute", run: state.runActive },
       { id: "export", label: "Export pack as .zip", group: "Pack", keywords: "download save", run: state.exportZip },
-      { id: "new-project", label: "Start a new pack", group: "Pack", keywords: "reset create", run: state.newProject },
+      { id: "new-pack", label: "Add another pack", group: "Pack", keywords: "create datapack", run: () => state.addPack() },
+      { id: "projects", label: "Open projects", group: "Pack", keywords: "workspace switch", run: () => window.open(asset("/projects/"), "_self") },
+      { id: "preferences", label: "Preferences", hint: formatBinding(keybindings.preferences), group: "Tools", keywords: "keybindings shortcuts settings", run: () => state.setPreferencesOpen(true) },
       { id: "reset-layout", label: "Reset dock layout", group: "Layout", keywords: "panels windows", run: state.resetLayout },
       { id: "re-lint", label: "Re-run the linter", group: "Tools", keywords: "problems errors", run: () => state.refreshLint() },
       { id: "credits", label: "Open credits and licenses", group: "Tools", keywords: "legal attribution", run: () => window.open(asset("/credits/"), "_self") },
@@ -67,7 +72,7 @@ export function CommandPalette() {
       });
     }
     return base;
-  }, [open]);
+  }, [open, keybindings]);
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase();
@@ -83,7 +88,7 @@ export function CommandPalette() {
     setSelected(0);
     const timer = setTimeout(() => inputRef.current?.focus(), 20);
     return () => clearTimeout(timer);
-  }, [open]);
+  }, [open, keybindings]);
 
   useEffect(() => {
     setSelected(0);

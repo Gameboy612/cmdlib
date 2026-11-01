@@ -17,6 +17,7 @@ import {
   ScoreboardPanel,
   StoragePanel,
 } from "./panels";
+import { TimelinePanel } from "./TimelinePanel";
 import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
 
@@ -25,6 +26,7 @@ const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> =
   editor: (props) => <CodePanel panelApi={props.api} />,
   preview: () => <PreviewPanel />,
   console: () => <ConsolePanel />,
+  timeline: () => <TimelinePanel />,
   scoreboard: () => <ScoreboardPanel />,
   storage: () => <StoragePanel />,
   entities: () => <EntitiesPanel />,
@@ -37,6 +39,7 @@ const PANEL_META: Record<string, { title: string; component: string }> = {
   editor: { title: "Code", component: "editor" },
   preview: { title: "Preview", component: "preview" },
   console: { title: "Console", component: "console" },
+  timeline: { title: "Timeline", component: "timeline" },
   scoreboard: { title: "Scores", component: "scoreboard" },
   storage: { title: "Storage", component: "storage" },
   entities: { title: "Entities", component: "entities" },
@@ -50,6 +53,7 @@ export function DockWorkspace() {
   const setLayout = useWorkbench((state) => state.setLayout);
   const resetLayout = useWorkbench((state) => state.resetLayout);
   const panelRequest = useWorkbench((state) => state.panelRequest);
+  const setOpenPanels = useWorkbench((state) => state.setOpenPanels);
 
   const openPanel = useCallback(
     (id: string) => {
@@ -74,7 +78,10 @@ export function DockWorkspace() {
 
   useEffect(() => {
     if (!api) return;
+    const syncPanels = () => setOpenPanels(api.panels.map((panel) => panel.id));
+    syncPanels();
     const disposable = api.onDidLayoutChange(() => {
+      syncPanels();
       if (savedRef.current) window.clearTimeout(savedRef.current);
       savedRef.current = window.setTimeout(() => {
         try {
@@ -86,7 +93,7 @@ export function DockWorkspace() {
       }, 350);
     });
     return () => disposable.dispose();
-  }, [api, setLayout]);
+  }, [api, setLayout, setOpenPanels]);
 
   useEffect(() => {
     if (!api || !panelRequest) return;
@@ -120,6 +127,7 @@ export function DockWorkspace() {
       window.setTimeout(applySizes, 120);
     }
     ensurePanels(dock);
+    setOpenPanels(dock.panels.map((panel) => panel.id));
     dock.getPanel("editor")?.api.setActive();
   };
 
@@ -196,6 +204,15 @@ function buildDefaultLayout(api: DockviewApi): void {
         title: "Console",
         position: { referenceGroup: edge, direction: "within" },
       });
+      if (api.getPanel("console")) {
+        api.addPanel({
+          id: "timeline",
+          component: "timeline",
+          title: "Timeline",
+          position: { referencePanel: "console", direction: "within" },
+          inactive: true,
+        });
+      }
     }
   } catch {
     api.addPanel({
@@ -204,6 +221,13 @@ function buildDefaultLayout(api: DockviewApi): void {
       title: "Console",
       position: { referencePanel: "editor", direction: "below" },
       initialHeight: 220,
+    });
+    api.addPanel({
+      id: "timeline",
+      component: "timeline",
+      title: "Timeline",
+      position: { referencePanel: "console", direction: "within" },
+      inactive: true,
     });
   }
 }

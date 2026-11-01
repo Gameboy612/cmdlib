@@ -1,7 +1,20 @@
 import type { FunctionDef, FunctionTag } from "./world";
 import { VersionProfile, getVersion, splitId } from "./version";
+import {
+  TAG_KINDS,
+  TAG_KIND_META,
+  isValidNamespace,
+  isValidResourcePath,
+  parseTagEntry,
+  parseTagPath,
+  tagFolderFor,
+  tagKindForFolderName,
+} from "./tag-kinds";
+import type { TagKind, TagValueInfo } from "./tag-kinds";
+import { newId } from "../ids";
 
 export interface Project {
+  id: string;
   name: string;
   versionId: string;
   files: Record<string, string>;
@@ -9,14 +22,45 @@ export interface Project {
   updatedAt: number;
 }
 
+/** A parsed tag of any supported kind. Function tags are also exposed in `tags`. */
+export interface ParsedTag {
+  kind: TagKind;
+  id: string;
+  namespace: string;
+  /** Tag name without the `.json` suffix, e.g. `ores/iron`. */
+  name: string;
+  path: string;
+  /** Normalised ids; references keep their leading `#`. */
+  values: string[];
+  entries: TagValueInfo[];
+}
+
+export type DatapackErrorCode =
+  | "invalid-folder"
+  | "invalid-tag-id"
+  | "invalid-tag-json"
+  | "missing-tag-values"
+  | "invalid-tag-value";
+
+export interface DatapackError {
+  path: string;
+  message: string;
+  code: DatapackErrorCode;
+  /** For value errors, the index in the tag's `values` array. */
+  valueIndex?: number;
+}
+
 export interface ParsedDatapack {
   functions: FunctionDef[];
+  /** Function tags only, in the shape the runtime/command layer expects. */
   tags: FunctionTag[];
-  errors: Array<{ path: string; message: string }>;
+  /** Every supported tag kind, including function tags. */
+  allTags: ParsedTag[];
+  errors: DatapackError[];
 }
 
 const FUNCTION_RE = /^data\/([^/]+)\/([^/]+)\/(.+)\.mcfunction$/;
-const TAG_RE = /^data\/([^/]+)\/(tags\/[^/]+)\/(.+)\.json$/;
+const TAG_FILE_RE = /^data\/([^/]+)\/tags\/([^/]+)\/(.+)\.json$/;
 
 export function parseDatapack(
   files: Record<string, string>,
@@ -24,6 +68,7 @@ export function parseDatapack(
 ): ParsedDatapack {
   const functions: FunctionDef[] = [];
   const tags: FunctionTag[] = [];
+  const allTags: ParsedTag[] = [];
   const errors: ParsedDatapack["errors"] = [];
 
   for (const [path, content] of Object.entries(files)) {
@@ -33,6 +78,7 @@ export function parseDatapack(
       if (folder !== version.functionFolder) {
         errors.push({
           path,
+          code: "invalid-folder",
           message: `Function folder '${folder}' is not valid for ${version.id}; expected '${version.functionFolder}'.`,
         });
         continue;
@@ -59,32 +105,96 @@ export function parseDatapack(
       continue;
     }
     if (!path.startsWith("data/")) continue;
-    const tag = TAG_RE.exec(path);
-    if (!tag) continue;
-    const [, namespace, folder, rest] = tag;
-    if (folder !== version.tagFolder) {
+    const tagFile = TAG_FILE_RE.exec(path);
+    if (!tagFile) continue;
+    const [, namespace, folderName, name] = tagFile;
+    const folder = `tags/${folderName}`;
+    const kind = TAG_KINDS.find((candidate) => tagFolderFor(candidate, version) === folder);
+    if (!kind) {
+      // Only report folders that belong to a tag kind cmdlib knows about.
+      // Datapacks also contain vanilla tag registries we do not model yet
+      // (painting_variant, damage_type, …); those must not become errors.
+      const knownKind = tagKindForFolderName(folderName);
+      if (knownKind) {
+        errors.push({
+          path,
+          code: "invalid-folder",
+          message: `Tag folder '${folder}' is not valid for ${version.id}; expected '${tagFolderFor(knownKind, version)}'.`,
+        });
+      }
+      continue;
+    }
+    if (!isValidNamespace(namespace) || !isValidResourcePath(name)) {
       errors.push({
         path,
-        message: `Tag folder '${folder}' is not valid for ${version.id}; expected '${version.tagFolder}'.`,
+        code: "invalid-tag-id",
+        message: `Invalid ${TAG_KIND_META[kind].label.toLowerCase()} tag id '${namespace}:${name}'. Use a lower-case namespace and path.`,
       });
       continue;
     }
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(content) as { values?: unknown };
-      if (!Array.isArray(parsed.values)) {
-        errors.push({ path, message: "Function tag is missing a 'values' array." });
-        continue;
-      }
-      tags.push({
-        id: `${namespace}:${rest}`,
-        values: parsed.values.filter((v): v is string => typeof v === "string"),
-      });
+      parsed = JSON.parse(content);
     } catch (error) {
-      errors.push({ path, message: `Invalid tag JSON: ${(error as Error).message}` });
+      errors.push({
+        path,
+        code: "invalid-tag-json",
+        message: `Invalid tag JSON: ${(error as Error).message}`,
+      });
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      errors.push({
+        path,
+        code: "invalid-tag-json",
+        message: "A tag file must contain a JSON object with a 'values' array.",
+      });
+      continue;
+    }
+    const rawValues = (parsed as { values?: unknown }).values;
+    if (!Array.isArray(rawValues)) {
+      errors.push({
+        path,
+        code: "missing-tag-values",
+        message: `${TAG_KIND_META[kind].label} tag is missing a 'values' array.`,
+      });
+      continue;
+    }
+
+    const entries: TagValueInfo[] = [];
+    rawValues.forEach((rawEntry, index) => {
+      const entry = parseTagEntry(kind, rawEntry);
+      if (!entry.ok) {
+        errors.push({
+          path,
+          code: "invalid-tag-value",
+          message: entry.message ?? `Invalid ${TAG_KIND_META[kind].valueLabel} value.`,
+          valueIndex: index,
+        });
+        return;
+      }
+      entries.push(entry);
+    });
+
+    const values = entries.map((entry) =>
+      entry.reference ? `#${entry.id}` : entry.id,
+    );
+    const id = `${namespace}:${name}`;
+    allTags.push({
+      kind,
+      id,
+      namespace,
+      name,
+      path,
+      values,
+      entries,
+    });
+    if (kind === "function") {
+      tags.push({ id, path, values });
     }
   }
 
-  return { functions, tags, errors };
+  return { functions, tags, allTags, errors };
 }
 
 export function functionFiles(files: Record<string, string>, version: VersionProfile): string[] {
@@ -116,25 +226,34 @@ export function listFunctionTags(
 ): Array<{ id: string; path: string; values: string[] }> {
   const out: Array<{ id: string; path: string; values: string[] }> = [];
   for (const [path, content] of Object.entries(files)) {
-    if (!path.startsWith("data/") || !path.includes(`/${version.tagFolder}/`) || !path.endsWith(".json")) {
-      continue;
-    }
-    const match = TAG_RE.exec(path);
-    if (!match) continue;
+    if (!path.startsWith("data/") || !path.endsWith(".json")) continue;
+    const info = parseTagPath(path, version);
+    if (!info || info.kind !== "function") continue;
     try {
       const parsed = JSON.parse(content) as { values?: unknown };
-      out.push({
-        id: `${match[1]}:${match[3]}`,
-        path,
-        values: Array.isArray(parsed.values)
-          ? parsed.values.filter((v): v is string => typeof v === "string")
-          : [],
-      });
+      const values = Array.isArray(parsed.values)
+        ? parsed.values
+            .map((entry) => parseTagEntry("function", entry))
+            .filter((entry) => entry.ok)
+            .map((entry) => (entry.reference ? `#${entry.id}` : entry.id))
+        : [];
+      out.push({ id: `${info.namespace}:${info.name}`, path, values });
     } catch {
       // The linter surfaces malformed JSON separately.
     }
   }
   return out;
+}
+
+/** List every parsed tag of a kind (or all kinds) for Explorer/completion use. */
+export function listTags(
+  files: Record<string, string>,
+  version: VersionProfile,
+  kind?: TagKind,
+): Array<{ kind: TagKind; id: string; path: string; values: string[] }> {
+  return parseDatapack(files, version)
+    .allTags.filter((tag) => !kind || tag.kind === kind)
+    .map((tag) => ({ kind: tag.kind, id: tag.id, path: tag.path, values: tag.values }));
 }
 
 export function collectStorageIds(files: Record<string, string>): string[] {
@@ -217,6 +336,7 @@ export function createProject(versionId = "26.3", name = "Untitled Pack"): Proje
   const version = getVersion(versionId);
   const files = createStarterFiles(version);
   return {
+    id: newId("pack"),
     name,
     versionId,
     files,
@@ -265,6 +385,7 @@ $title @s subtitle {"text":"stage: $(stage)","color":"gray"}
     [`data/minecraft/${tag}/load.json`]: JSON.stringify({ values: ["landing:load"] }, null, 2) + "\n",
   };
   return {
+    id: newId("pack"),
     name: "Landing",
     versionId,
     files,

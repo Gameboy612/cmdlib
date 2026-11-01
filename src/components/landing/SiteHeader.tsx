@@ -46,6 +46,9 @@ export function SiteHeader() {
         </nav>
 
         <div className={styles.headerActions}>
+          <Link className={styles.creditsLink} href="/projects/">
+            Projects
+          </Link>
           <a className={styles.creditsLink} href={asset("/credits/")}>
             Credits
           </a>

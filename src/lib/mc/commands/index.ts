@@ -3,6 +3,7 @@ import { functionHandler } from "./function";
 import { dataHandler } from "./data";
 import { scoreboardHandler } from "./scoreboard";
 import { titleHandler } from "./title";
+import { scheduleHandler } from "./schedule";
 import {
   killHandler,
   meHandler,
@@ -37,6 +38,8 @@ export const HANDLERS: Record<string, CommandHandler> = {
   return: returnHandler,
   setblock: setblockHandler,
   reload: reloadHandler,
+  schedule: scheduleHandler,
 };
 
 export { executeHandler, scoreboardHandler, titleHandler, functionHandler, dataHandler };
+export { scheduleHandler, parseScheduleTime, TICKS_PER_SECOND, TICKS_PER_DAY, SCHEDULE_USAGE } from "./schedule";

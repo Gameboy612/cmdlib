@@ -47,4 +47,24 @@ describe("version migration", () => {
   it("does not treat comment prose as a storage id", () => {
     expect(collectStorageIds(createDemoProject("26.3").files)).not.toContain("minecraft:compound.");
   });
+
+  it("migrates every supported tag folder between versions", () => {
+    const old = {
+      "data/mypack/tags/items/ores.json": JSON.stringify({ values: [] }),
+      "data/mypack/tags/blocks/stone.json": JSON.stringify({ values: [] }),
+      "data/mypack/tags/entity_types/hostiles.json": JSON.stringify({ values: [] }),
+      "data/mypack/tags/fluids/lava.json": JSON.stringify({ values: [] }),
+      "data/mypack/tags/game_events/vibrations.json": JSON.stringify({ values: [] }),
+    };
+    const up = migrateFiles(old, getVersion("1.20.4"), getVersion("26.3"), "x");
+    expect(Object.keys(up)).toEqual(
+      expect.arrayContaining([
+        "data/mypack/tags/item/ores.json",
+        "data/mypack/tags/block/stone.json",
+        "data/mypack/tags/entity_type/hostiles.json",
+        "data/mypack/tags/fluid/lava.json",
+        "data/mypack/tags/game_event/vibrations.json",
+      ]),
+    );
+  });
 });

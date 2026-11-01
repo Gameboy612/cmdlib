@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useWorkbench, useSimRevision } from "@/lib/state/workbench";
+import { useActiveWorkspace, useWorkbench, useSimRevision } from "@/lib/state/workbench";
 import { WorldView } from "@/components/preview/WorldView";
 import { CodeEditor } from "./CodeEditor";
 import { NbtTree } from "./NbtTree";
@@ -11,6 +11,14 @@ import {
   fileKind,
 } from "@/lib/mc/datapack";
 import { getVersion, VERSIONS, formatPackFormat } from "@/lib/mc/version";
+import {
+  TAG_KINDS,
+  TAG_KIND_META,
+  isTagKind,
+  tagFolderFor,
+  tagKindForFolderName,
+  type TagKind,
+} from "@/lib/mc/tag-kinds";
 import { COMMANDS, COMMAND_NAMES, entityInfo } from "@/lib/mc/data";
 import { entityCustomName, entityPos, type EntityData } from "@/lib/mc/entities";
 import { stringifySnbt } from "@/lib/mc/nbt";
@@ -99,10 +107,20 @@ function buildTree(files: Record<string, string>): TreeNode {
   return root;
 }
 
+type ExplorerDraft =
+  | { mode: "create"; kind: "file" | "function" | "tag"; folder?: string; tagKind?: TagKind; value: string }
+  | { mode: "rename"; path: string; value: string }
+  | { mode: "delete"; path: string };
+
 export function ExplorerPanel() {
   const project = useWorkbench((state) => state.project);
+  const workspace = useActiveWorkspace();
   const activePath = useWorkbench((state) => state.activePath);
   const openFile = useWorkbench((state) => state.openFile);
+  const selectPack = useWorkbench((state) => state.selectPack);
+  const addPack = useWorkbench((state) => state.addPack);
+  const deletePack = useWorkbench((state) => state.deletePack);
+  const setPackName = useWorkbench((state) => state.setPackName);
   const createFile = useWorkbench((state) => state.createFile);
   const deleteFile = useWorkbench((state) => state.deleteFile);
   const renameFile = useWorkbench((state) => state.renameFile);
@@ -122,6 +140,12 @@ export function ExplorerPanel() {
   );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [draft, setDraft] = useState<ExplorerDraft | null>(null);
+  const [dragPath, setDragPath] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const draftInput = useRef<HTMLInputElement | null>(null);
+  const lastCreateNonce = useRef(0);
+  const explorerCreate = useWorkbench((state) => state.explorerCreate);
 
   const activeNamespace = useMemo(() => {
     const match = /^data\/([^/]+)\//.exec(activePath);
@@ -137,49 +161,92 @@ export function ExplorerPanel() {
     });
   };
 
-  const addFunction = (folder?: string) => {
-    const raw = window.prompt("New function name (without .mcfunction)", "new_function");
-    if (!raw) return;
-    const name = raw
-      .trim()
-      .replace(/^data\/.+\//, "")
-      .replace(/\.mcfunction$/, "")
-      .replace(/\s+/g, "_");
-    if (!name) return;
-    const namespace = folder
-      ? /^data\/([^/]+)\//.exec(folder)?.[1] ?? activeNamespace
-      : activeNamespace;
-    const target =
-      folder && folder.endsWith(`/${version.functionFolder}`)
-        ? folder
-        : `data/${namespace}/${version.functionFolder}`;
-    const path = `${target}/${name}.mcfunction`;
-    createFile(path, `# ${namespace}:${name}\n`);
+  useEffect(() => {
+    if (!explorerCreate || explorerCreate.nonce === lastCreateNonce.current) return;
+    lastCreateNonce.current = explorerCreate.nonce;
+    setDraft({
+      mode: "create",
+      kind: explorerCreate.kind,
+      folder: explorerCreate.folder,
+      tagKind:
+        explorerCreate.tagKind && isTagKind(explorerCreate.tagKind)
+          ? explorerCreate.tagKind
+          : "function",
+      value:
+        explorerCreate.kind === "function"
+          ? "new_function"
+          : explorerCreate.kind === "tag"
+            ? "tick"
+            : `${explorerCreate.folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
+    });
+  }, [explorerCreate, activeNamespace, version.functionFolder]);
+
+  useEffect(() => {
+    if (!draft || draft.mode === "delete") return;
+    const frame = requestAnimationFrame(() => {
+      draftInput.current?.focus();
+      draftInput.current?.select();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [draft]);
+
+  const beginCreate = (
+    kind: "file" | "function" | "tag",
+    folder?: string,
+    tagKind: TagKind = "function",
+  ) => {
+    if (folder) {
+      setCollapsed((current) => {
+        if (!current.has(folder)) return current;
+        const next = new Set(current);
+        next.delete(folder);
+        return next;
+      });
+    }
+    setDraft({
+      mode: "create",
+      kind,
+      folder,
+      tagKind,
+      value:
+        kind === "function"
+          ? "new_function"
+          : kind === "tag"
+            ? "tick"
+            : `${folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
+    });
   };
 
-  const addTag = (folder?: string) => {
-    const raw = window.prompt("New function tag name", "tick");
-    if (!raw) return;
-    const name = raw.trim().replace(/\s+/g, "_").replace(/\.json$/, "");
-    if (!name) return;
-    const namespace = folder
-      ? /^data\/([^/]+)\//.exec(folder)?.[1] ?? activeNamespace
-      : activeNamespace;
-    const target =
-      folder && folder.endsWith(`/${version.tagFolder}`)
-        ? folder
-        : `data/${namespace}/${version.tagFolder}`;
-    const path = `${target}/${name}.json`;
-    createFile(path, `${JSON.stringify({ values: [] }, null, 2)}\n`);
+  const addFunction = (folder?: string) => beginCreate("function", folder);
+  const addTag = (folder?: string, kind: TagKind = "function") => {
+    const inferred = folder
+      ? tagKindForFolderName(folder.split("/").pop() ?? "")
+      : null;
+    beginCreate("tag", folder, inferred ?? kind);
   };
+  const addFile = (folder?: string) => beginCreate("file", folder);
 
-  const addFile = (folder?: string) => {
-    const raw = window.prompt(
-      "Full path inside the pack",
-      `${folder ?? `data/${activeNamespace}/${version.functionFolder}`}/utility.mcfunction`,
-    );
-    if (!raw) return;
-    createFile(raw.trim().replace(/^\/+/, ""), raw.endsWith(".json") ? "{}\n" : "");
+  const packMenu = (event: React.MouseEvent, packId: string, name: string) => {
+    openMenu(event, [
+      { label: "Select pack", onSelect: () => selectPack(packId) },
+      {
+        label: "Rename pack…",
+        onSelect: () => {
+          const next = window.prompt("Pack name", name);
+          if (next?.trim()) setPackName(packId, next.trim());
+        },
+      },
+      { label: "Copy pack name", onSelect: () => copyPath(name) },
+      { separator: true },
+      {
+        label: "Delete pack",
+        danger: true,
+        disabled: (workspace?.packs.length ?? 0) <= 1,
+        onSelect: () => {
+          if (window.confirm(`Delete ${name}?`)) deletePack(packId);
+        },
+      },
+    ]);
   };
 
   const copyPath = (path: string) => {
@@ -200,6 +267,73 @@ export function ExplorerPanel() {
     createFile(candidate, project.files[path] ?? "");
   };
 
+  const requestDelete = (path: string) => setDraft({ mode: "delete", path });
+  const requestRename = (path: string) =>
+    setDraft({ mode: "rename", path, value: path });
+
+  const commitDraft = () => {
+    if (!draft) return;
+    if (draft.mode === "delete") {
+      deleteFile(draft.path);
+      setDraft(null);
+      return;
+    }
+    const value = draft.value.trim();
+    if (!value) {
+      setDraft(null);
+      return;
+    }
+    if (draft.mode === "rename") {
+      if (renameFile(draft.path, value.replace(/^\/+/, ""))) setDraft(null);
+      return;
+    }
+
+    const namespace = draft.folder
+      ? /^data\/([^/]+)\//.exec(draft.folder)?.[1] ?? activeNamespace
+      : activeNamespace;
+    if (draft.kind === "function") {
+      const target =
+        draft.folder && draft.folder.endsWith(`/${version.functionFolder}`)
+          ? draft.folder
+          : `data/${namespace}/${version.functionFolder}`;
+      const name = value
+        .replace(/^data\/.+\//, "")
+        .replace(/\.mcfunction$/, "")
+        .replace(/\s+/g, "_");
+      if (createFile(`${target}/${name}.mcfunction`, `# ${namespace}:${name}\n`)) {
+        setDraft(null);
+      }
+      return;
+    }
+    if (draft.kind === "tag") {
+      const tagKind = draft.tagKind ?? "function";
+      const tagFolder = tagFolderFor(tagKind, version);
+      const target =
+        draft.folder && draft.folder.endsWith(`/${tagFolder}`)
+          ? draft.folder
+          : `data/${namespace}/${tagFolder}`;
+      const name = value.replace(/\s+/g, "_").replace(/\.json$/, "");
+      if (createFile(`${target}/${name}.json`, `${JSON.stringify({ values: [] }, null, 2)}\n`)) {
+        setDraft(null);
+      }
+      return;
+    }
+
+    let path = value.replace(/^\/+/, "");
+    if (!path.includes("/") && draft.folder) path = `${draft.folder}/${path}`;
+    if (createFile(path, path.endsWith(".json") ? "{}\n" : "")) setDraft(null);
+  };
+
+  const moveToFolder = (from: string, folder: string) => {
+    const name = from.split("/").pop();
+    if (!name) return;
+    const to = folder ? `${folder}/${name}` : name;
+    setDragPath(null);
+    setDropTarget(null);
+    if (to === from) return;
+    if (renameFile(from, to)) showToast(`Moved ${name}`, "success");
+  };
+
   const openMenu = (event: React.MouseEvent, items: ContextMenuEntry[]) => {
     event.preventDefault();
     event.stopPropagation();
@@ -213,12 +347,12 @@ export function ExplorerPanel() {
       ...(path.endsWith(".mcfunction")
         ? [{ label: "Run function", onSelect: runActive }]
         : []),
-      { label: "Rename…", onSelect: () => rename(path) },
+      { label: "Rename…", onSelect: () => requestRename(path) },
       { label: "Duplicate", onSelect: () => duplicate(path) },
       { separator: true },
       { label: "Copy path", onSelect: () => copyPath(path) },
       { separator: true },
-      { label: "Delete", danger: true, onSelect: () => remove(path) },
+      { label: "Delete", danger: true, onSelect: () => requestDelete(path) },
     ]);
   };
 
@@ -242,15 +376,62 @@ export function ExplorerPanel() {
     ]);
   };
 
-  const remove = (path: string) => {
-    if (!window.confirm(`Delete ${path}?`)) return;
-    deleteFile(path);
-  };
+;
 
-  const rename = (path: string) => {
-    const next = window.prompt("New path", path);
-    if (!next || next === path) return;
-    renameFile(path, next.trim());
+;
+
+  const renderDraftRow = (folder: string | undefined, depth: number) => {
+    if (!draft || draft.mode !== "create" || draft.folder !== folder) return null;
+    const label =
+      draft.kind === "function" ? "ƒ function" : draft.kind === "tag" ? "# tag" : "{} file";
+    return (
+      <div className={`${styles.draftRow} ${styles.draftCreate}`} style={{ paddingLeft: 8 + depth * 13 }}>
+        <span className={styles.draftBadge}>{label}</span>
+        {draft.kind === "tag" && (
+          <select
+            className={styles.draftSelect}
+            value={draft.tagKind ?? "function"}
+            onChange={(event) => {
+              const kind = event.target.value;
+              if (!isTagKind(kind)) return;
+              setDraft((current) =>
+                current && current.mode === "create"
+                  ? { ...current, tagKind: kind }
+                  : current,
+              );
+            }}
+            aria-label="Tag kind"
+          >
+            {TAG_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {TAG_KIND_META[kind].label}
+              </option>
+            ))}
+          </select>
+        )}
+        <input
+          ref={draftInput}
+          value={draft.value}
+          placeholder={
+            draft.kind === "file" ? "path/to/file.mcfunction" : "name"
+          }
+          spellCheck={false}
+          onChange={(event) =>
+            setDraft((current) =>
+              current && current.mode === "create"
+                ? { ...current, value: event.target.value }
+                : current,
+            )
+          }
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Enter") commitDraft();
+            if (event.key === "Escape") setDraft(null);
+          }}
+          aria-label={`New ${draft.kind} name`}
+        />
+      </div>
+    );
   };
 
   const renderNode = (node: TreeNode, depth: number): React.ReactNode => {
@@ -258,6 +439,51 @@ export function ExplorerPanel() {
       const kind = fileKind(node.path);
       const isActive = activePath === node.path;
       const unused = unusedPaths.has(node.path);
+      const parent = node.path.includes("/")
+        ? node.path.slice(0, node.path.lastIndexOf("/"))
+        : "";
+      if (draft?.mode === "delete" && draft.path === node.path) {
+        return (
+          <div key={node.path} className={styles.draftRow} style={{ paddingLeft: 8 + depth * 13 }}>
+            <span className={styles.draftBadge}>delete</span>
+            <span className={styles.draftAsk}>Delete {node.name}?</span>
+            <button
+              type="button"
+              className={styles.draftConfirm}
+              onClick={() => {
+                deleteFile(node.path);
+                setDraft(null);
+              }}
+            >
+              ✓
+            </button>
+            <button type="button" className={styles.draftCancel} onClick={() => setDraft(null)}>×</button>
+          </div>
+        );
+      }
+      if (draft?.mode === "rename" && draft.path === node.path) {
+        return (
+          <div key={node.path} className={styles.draftRow} style={{ paddingLeft: 8 + depth * 13 }}>
+            <span className={`${styles.fileIcon} ${styles[`fileIcon_${kind}`]}`}>
+              {kind === "mcfunction" ? "ƒ" : kind === "json" ? "{}" : "π"}
+            </span>
+            <input
+              ref={draftInput}
+              value={draft.value}
+              spellCheck={false}
+              onChange={(event) =>
+                setDraft({ mode: "rename", path: node.path, value: event.target.value })
+              }
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === "Enter") commitDraft();
+                if (event.key === "Escape") setDraft(null);
+              }}
+              aria-label={`Rename ${node.path}`}
+            />
+          </div>
+        );
+      }
       return (
         <div
           key={node.path}
@@ -265,6 +491,26 @@ export function ExplorerPanel() {
           title={unused ? "Function is never called by this pack" : undefined}
           style={{ paddingLeft: 8 + depth * 13 }}
           onClick={() => openFile(node.path)}
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.setData("text/plain", node.path);
+            event.dataTransfer.effectAllowed = "move";
+            setDragPath(node.path);
+          }}
+          onDragEnd={() => {
+            setDragPath(null);
+            setDropTarget(null);
+          }}
+          onDragOver={(event) => {
+            if (!dragPath || dragPath === node.path) return;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (dragPath) moveToFolder(dragPath, parent);
+          }}
           onContextMenu={(event) => fileMenu(event, node.path)}
           role="button"
           tabIndex={0}
@@ -278,10 +524,10 @@ export function ExplorerPanel() {
           <span className={styles.treeName}>{node.name}</span>
           {unused && <span className={styles.treeWarn} aria-label="Unused function">△</span>}
           <span className={styles.treeActions}>
-            <button type="button" aria-label={`Rename ${node.path}`} onClick={(event) => { event.stopPropagation(); rename(node.path); }}>
+            <button type="button" aria-label={`Rename ${node.path}`} onClick={(event) => { event.stopPropagation(); requestRename(node.path); }}>
               ✎
             </button>
-            <button type="button" aria-label={`Delete ${node.path}`} onClick={(event) => { event.stopPropagation(); remove(node.path); }}>
+            <button type="button" aria-label={`Delete ${node.path}`} onClick={(event) => { event.stopPropagation(); requestDelete(node.path); }}>
               ×
             </button>
           </span>
@@ -293,9 +539,21 @@ export function ExplorerPanel() {
       <div key={node.path}>
         {node.name && (
           <div
-            className={styles.treeFolder}
+            className={`${styles.treeFolder} ${dropTarget === node.path ? styles.treeDrop : ""}`}
             style={{ paddingLeft: 8 + depth * 13 }}
             onClick={() => toggle(node.path)}
+            onDragOver={(event) => {
+              if (!dragPath) return;
+              event.preventDefault();
+              event.stopPropagation();
+              setDropTarget(node.path);
+            }}
+            onDragLeave={() => setDropTarget((current) => (current === node.path ? null : current))}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (dragPath) moveToFolder(dragPath, node.path);
+            }}
             onContextMenu={(event) => folderMenu(event, node.path)}
             role="button"
             tabIndex={0}
@@ -308,6 +566,7 @@ export function ExplorerPanel() {
             <span>{node.name}</span>
           </div>
         )}
+        {!isCollapsed && renderDraftRow(node.path, depth + 1)}
         {!isCollapsed &&
           node.children &&
           [...node.children.values()]
@@ -322,8 +581,26 @@ export function ExplorerPanel() {
 
   return (
     <div className={`${styles.panel} ${styles.explorerPanel}`}>
+      {workspace && workspace.packs.length > 1 && (
+        <div className={styles.packList}>
+          {workspace.packs.map((pack) => (
+            <button
+              key={pack.id}
+              type="button"
+              className={`${styles.packRow} ${pack.id === project.id ? styles.packRowActive : ""}`}
+              onClick={() => selectPack(pack.id)}
+              onContextMenu={(event) => packMenu(event, pack.id, pack.name)}
+              title={`${pack.name} · ${pack.versionId}`}
+            >
+              <span className={styles.packDot} />
+              <span className={styles.packName}>{pack.name}</span>
+              <span className={styles.packVersion}>{pack.versionId}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div
-        className={styles.tree}
+        className={`${styles.tree} ${dropTarget === "" ? styles.treeDrop : ""}`}
         onContextMenu={(event) =>
           openMenu(event, [
             { label: "New function…", onSelect: () => addFunction() },
@@ -331,7 +608,17 @@ export function ExplorerPanel() {
             { label: "New tag…", onSelect: () => addTag() },
           ])
         }
+        onDragOver={(event) => {
+          if (!dragPath) return;
+          event.preventDefault();
+          setDropTarget("");
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          if (dragPath) moveToFolder(dragPath, "");
+        }}
       >
+        {renderDraftRow(undefined, 0)}
         {renderNode(tree, 0)}
       </div>
       <div className={styles.explorerFoot}>
@@ -339,6 +626,7 @@ export function ExplorerPanel() {
           <button type="button" onClick={() => addFunction()}>+ function</button>
           <button type="button" onClick={() => addFile()}>+ file</button>
           <button type="button" onClick={() => addTag()}>+ tag</button>
+          <button type="button" onClick={() => addPack()}>+ pack</button>
         </span>
         <span>{formatPackFormat(version.packFormat)}</span>
       </div>
@@ -372,6 +660,7 @@ export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
     );
   }
 
+  const runnable = activePath.endsWith(".mcfunction");
   return (
     <div className={`${styles.panel} ${styles.editorPanel}`}>
       <div className={styles.editorHost}>
@@ -383,6 +672,15 @@ export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
           onRun={runActive}
           onSave={() => showToast("Saved to this browser", "success")}
         />
+        <button
+          type="button"
+          className={styles.editorRun}
+          onClick={runActive}
+          disabled={!runnable}
+          title={runnable ? "Run active function" : "Only functions can run"}
+        >
+          <span aria-hidden>▶</span> Run file
+        </button>
       </div>
     </div>
   );
@@ -443,7 +741,7 @@ export function PreviewPanel() {
     } else {
       const player = world.player();
       items.push(
-        { label: "Run load tags", onSelect: runLoad },
+        { label: "Run /reload", onSelect: runLoad },
         {
           label: "Open entities",
           onSelect: () => requestPanel("entities"),
@@ -479,7 +777,7 @@ export function PreviewPanel() {
         <span>{sim.version.id}</span>
         <span>{world.entities.length} {world.entities.length === 1 ? "entity" : "entities"}</span>
         <span>{world.titles.title ? "title active" : "no title"}</span>
-        <span className={styles.panelFootRight}>drag · zoom · right-click</span>
+        <span className={styles.panelFootRight}>drag · zoom · right-drag rotate</span>
       </div>
       <ContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} />
     </div>
@@ -591,6 +889,8 @@ export function ScoreboardPanel() {
   }, [revision, sidebarObjective]);
 
   const objective = selected ? world.objectives.get(selected) : null;
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
   const scores = useMemo(() => {
     if (!selected) return [];
     const map = world.scores.get(selected);
@@ -599,6 +899,17 @@ export function ScoreboardPanel() {
       .map(([holder, value]) => ({ holder, value, display: world.holderDisplayName(holder) }))
       .sort((a, b) => b.value - a.value || a.holder.localeCompare(b.holder));
   }, [world, selected, revision]);
+  const pageCount = Math.max(1, Math.ceil(scores.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageScores = scores.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(0);
+  }, [selected]);
+
+  useEffect(() => {
+    if (page > pageCount - 1) setPage(pageCount - 1);
+  }, [page, pageCount]);
 
   return (
     <PanelShell
@@ -609,11 +920,32 @@ export function ScoreboardPanel() {
         <>
           <span>sidebar: {sidebarObjective ?? "none"}</span>
           <span>{scores.length} scores</span>
+          {scores.length > PAGE_SIZE && (
+            <span className={styles.pager}>
+              <button
+                type="button"
+                disabled={currentPage === 0}
+                onClick={() => setPage((value) => Math.max(0, value - 1))}
+                aria-label="Previous score page"
+              >
+                ‹
+              </button>
+              <span>{currentPage + 1} / {pageCount}</span>
+              <button
+                type="button"
+                disabled={currentPage >= pageCount - 1}
+                onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
+                aria-label="Next score page"
+              >
+                ›
+              </button>
+            </span>
+          )}
         </>
       }
     >
       {objectives.length === 0 ? (
-        <EmptyState title="No objectives yet" body="Press F5 to run the pack's load tag, or add a scoreboard objective in a function." />
+        <EmptyState title="No objectives yet" body="Run /reload, or add a scoreboard objective in a function." />
       ) : (
         <div className={styles.scoreboard}>
           <div className={styles.objectiveList}>
@@ -642,7 +974,7 @@ export function ScoreboardPanel() {
                 <span>{objective.renderType}</span>
               </div>
               {scores.length === 0 && <p className={styles.scoreEmpty}>No scores set.</p>}
-              {scores.map((score) => (
+              {pageScores.map((score) => (
                 <div key={score.holder} className={styles.scoreRow}>
                   <span className={styles.scoreName}>{score.display}</span>
                   <span className={styles.scoreHolder}>{score.holder.slice(0, 8)}</span>

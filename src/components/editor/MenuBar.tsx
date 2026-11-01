@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useWorkbench } from "@/lib/state/workbench";
 import { getVersion } from "@/lib/mc/version";
+import { usePreferences } from "@/lib/state/preferences";
+import { formatBinding } from "@/lib/keybindings";
 import { dispatchEditorCommand } from "@/lib/editor/commands";
 import { PANEL_LABELS } from "./panel-meta";
 import styles from "./editor.module.css";
@@ -10,6 +12,7 @@ import styles from "./editor.module.css";
 interface MenuAction {
   label: string;
   hint?: string;
+  checked?: boolean;
   run: () => void;
   separator?: never;
 }
@@ -32,15 +35,19 @@ export function MenuBar() {
   const runLoad = useWorkbench((state) => state.runLoad);
   const runActive = useWorkbench((state) => state.runActive);
   const clearConsole = useWorkbench((state) => state.clearConsole);
-  const newProject = useWorkbench((state) => state.newProject);
+  const addPack = useWorkbench((state) => state.addPack);
   const createFile = useWorkbench((state) => state.createFile);
   const importZip = useWorkbench((state) => state.importZip);
   const exportZip = useWorkbench((state) => state.exportZip);
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const requestPanel = useWorkbench((state) => state.requestPanel);
+  const openPanels = useWorkbench((state) => state.openPanels);
   const resetLayout = useWorkbench((state) => state.resetLayout);
   const goTo = useWorkbench((state) => state.goTo);
   const showToast = useWorkbench((state) => state.showToast);
+  const setPreferencesOpen = useWorkbench((state) => state.setPreferencesOpen);
+  const requestExplorerCreate = useWorkbench((state) => state.requestExplorerCreate);
+  const keybindings = usePreferences((state) => state.keybindings);
   const [open, setOpen] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const importRef = useRef<HTMLInputElement | null>(null);
@@ -64,28 +71,6 @@ export function MenuBar() {
 
   const namespace = /^data\/([^/]+)\//.exec(activePath)?.[1] ?? "cmdlib";
 
-  const newFunction = () => {
-    const raw = window.prompt("New function name", "new_function");
-    if (!raw) return;
-    const name = raw
-      .trim()
-      .replace(/^data\/.+\//, "")
-      .replace(/\.mcfunction$/, "")
-      .replace(/\s+/g, "_");
-    if (!name) return;
-    createFile(
-      `data/${namespace}/${version.functionFolder}/${name}.mcfunction`,
-      `# ${namespace}:${name}\n`,
-    );
-  };
-
-  const newFile = () => {
-    const raw = window.prompt("File path", `data/${namespace}/${version.functionFolder}/utility.mcfunction`);
-    if (!raw) return;
-    const path = raw.trim().replace(/^\/+/, "");
-    createFile(path, path.endsWith(".json") ? "{}\n" : "");
-  };
-
   const goToLine = () => {
     if (!activePath) return;
     const raw = window.prompt("Go to line", "1");
@@ -102,16 +87,23 @@ export function MenuBar() {
     window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/credits/`;
   };
 
+  const openProjects = () => {
+    window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/projects/`;
+  };
+
   const menus: Menu[] = [
     {
       label: "File",
       items: [
-        { label: "New pack", run: newProject },
-        { label: "New file", run: newFile },
-        { label: "New function", run: newFunction },
+        { label: "New pack", run: () => addPack() },
+        { label: "New file", run: () => requestExplorerCreate({ kind: "file" }) },
+        { label: "New function", run: () => requestExplorerCreate({ kind: "function" }) },
         { separator: true },
+        { label: "Projects…", run: openProjects },
         { label: "Import pack…", run: () => importRef.current?.click() },
         { label: "Export pack", run: exportZip },
+        { separator: true },
+        { label: "Preferences…", hint: formatBinding(keybindings.preferences), run: () => setPreferencesOpen(true) },
       ],
     },
     {
@@ -137,6 +129,7 @@ export function MenuBar() {
       items: [
         ...Object.entries(PANEL_LABELS).map(([id, label]) => ({
           label,
+          checked: openPanels.includes(id),
           run: () => requestPanel(id),
         })),
         { separator: true as const },
@@ -154,7 +147,7 @@ export function MenuBar() {
     {
       label: "Run",
       items: [
-        { label: "Run load tags", run: runLoad },
+        { label: "Run /reload", run: runLoad },
         { label: "Run active function", run: runActive },
         { separator: true },
         { label: "Clear console", run: clearConsole },
@@ -212,7 +205,10 @@ export function MenuBar() {
                         item.run();
                       }}
                     >
-                      <span>{item.label}</span>
+                      <span className={styles.menuLabelText}>
+                        <span className={styles.menuCheck}>{item.checked ? "✓" : ""}</span>
+                        {item.label}
+                      </span>
                       {item.hint && <span className={styles.menuHint}>{item.hint}</span>}
                     </button>
                   ),

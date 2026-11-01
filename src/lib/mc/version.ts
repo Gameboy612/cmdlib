@@ -9,6 +9,14 @@
  * capability flags, not scattered `if` statements.
  */
 
+import type { TagKind } from "./tag-kinds";
+import { TAG_KINDS, tagFolderFor } from "./tag-kinds";
+
+/** Folder of every supported tag kind for a version, e.g. `tags/item`. */
+export interface TagFolderMap extends Record<TagKind, string> {
+  function: "tags/functions" | "tags/function";
+}
+
 export interface VersionProfile {
   id: string;
   label: string;
@@ -17,7 +25,10 @@ export interface VersionProfile {
   dataVersion?: number;
   protocol?: number;
   functionFolder: "functions" | "function";
+  /** Function tag folder. Kept for older call sites; mirrors `tagFolders.function`. */
   tagFolder: "tags/functions" | "tags/function";
+  /** Tag folder for every supported kind (function, item, block, …). */
+  tagFolders: TagFolderMap;
   packMeta: "legacy" | "minmax";
   macros: boolean;
   textComponents: "json" | "snbt";
@@ -28,27 +39,53 @@ export interface VersionProfile {
   notes?: string;
 }
 
+function tagFoldersFor(packFormat: number): TagFolderMap {
+  const singular = packFormat >= 48;
+  if (singular) {
+    return {
+      function: "tags/function",
+      item: "tags/item",
+      block: "tags/block",
+      entity_type: "tags/entity_type",
+      fluid: "tags/fluid",
+      game_event: "tags/game_event",
+    };
+  }
+  return {
+    function: "tags/functions",
+    item: "tags/items",
+    block: "tags/blocks",
+    entity_type: "tags/entity_types",
+    fluid: "tags/fluids",
+    game_event: "tags/game_events",
+  };
+}
+
 const profile = (
   id: string,
   label: string,
   release: string,
   packFormat: [number, number],
   opts: Partial<VersionProfile> = {},
-): VersionProfile => ({
-  id,
-  label,
-  release,
-  packFormat,
-  functionFolder: packFormat[0] >= 48 ? "function" : "functions",
-  tagFolder: packFormat[0] >= 48 ? "tags/function" : "tags/functions",
-  packMeta: packFormat[0] >= 82 ? "minmax" : "legacy",
-  macros: packFormat[0] >= 18,
-  textComponents: packFormat[0] >= 71 ? "snbt" : "json",
-  dataStorage: true,
-  returnCommand: packFormat[0] >= 18,
-  displayNumberFormat: packFormat[0] >= 26,
-  ...opts,
-});
+): VersionProfile => {
+  const tagFolders = opts.tagFolders ?? tagFoldersFor(packFormat[0]);
+  return {
+    id,
+    label,
+    release,
+    packFormat,
+    functionFolder: packFormat[0] >= 48 ? "function" : "functions",
+    tagFolder: tagFolders.function,
+    tagFolders,
+    packMeta: packFormat[0] >= 82 ? "minmax" : "legacy",
+    macros: packFormat[0] >= 18,
+    textComponents: packFormat[0] >= 71 ? "snbt" : "json",
+    dataStorage: true,
+    returnCommand: packFormat[0] >= 18,
+    displayNumberFormat: packFormat[0] >= 26,
+    ...opts,
+  };
+};
 
 export const VERSIONS: VersionProfile[] = [
   profile("26.3", "26.3 · Wilderness Bound", "2026-09-15", [121, 0], {
@@ -159,10 +196,16 @@ export function migrateFiles(
         `data/$1/${to.functionFolder}/`,
       );
     }
-    if (from.tagFolder !== to.tagFolder) {
+    // Every tag kind moved from a plural folder to a singular one in 1.21.
+    // Run all kinds (including functions) so item/block/entity_type/fluid/
+    // game_event tags migrate alongside function tags.
+    for (const kind of TAG_KINDS) {
+      const fromFolder = tagFolderFor(kind, from);
+      const toFolder = tagFolderFor(kind, to);
+      if (fromFolder === toFolder) continue;
       next = next.replace(
-        new RegExp(`^data/([^/]+)/${from.tagFolder}/`),
-        `data/$1/${to.tagFolder}/`,
+        new RegExp(`^data/([^/]+)/${fromFolder}/`),
+        `data/$1/${toFolder}/`,
       );
     }
     out[next] = content;

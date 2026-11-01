@@ -471,7 +471,20 @@ export const COMMANDS: Record<string, CommandSpec> = {
   attribute: { name: "attribute", summary: "Read or set attributes.", category: "player", supported: false },
   item: { name: "item", summary: "Modify inventories.", category: "player", supported: false },
   loot: { name: "loot", summary: "Insert loot.", category: "player", supported: false },
-  schedule: { name: "schedule", summary: "Schedule a function.", category: "server", supported: false },
+  schedule: {
+    name: "schedule",
+    summary: "Run a function later, or clear its queued runs.",
+    category: "server",
+    supported: true,
+    usage:
+      "/schedule function <function> <time> [append|replace] | /schedule clear <function>",
+    args: [
+      arg("action", "enum", "function or clear."),
+      arg("function", "function", "Function to schedule or clear."),
+      arg("time", "word", "Delay as an integer plus t, s or d (20 t/s, 24000 t/d).", true),
+      arg("mode", "enum", "append keeps existing runs; replace is the default.", true),
+    ],
+  },
   random: { name: "random", summary: "Draw a random value.", category: "server", supported: false },
   compute: { name: "compute", summary: "Evaluate a number provider (26.3).", category: "server", supported: false, since: "26.3" },
   posteffect: { name: "posteffect", summary: "Apply a post-processing effect (26.3).", category: "world", supported: false, since: "26.3" },

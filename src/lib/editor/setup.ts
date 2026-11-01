@@ -1,6 +1,14 @@
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
+import {
+  acceptCompletion,
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  completionStatus,
+  startCompletion,
+} from "@codemirror/autocomplete";
 import { json, jsonParseLinter } from "@codemirror/lang-json";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import {
   bracketMatching,
   foldGutter,
@@ -137,6 +145,16 @@ export const cmdlibEditorTheme = EditorView.theme(
   { dark: true },
 );
 
+/** Tab indents with spaces instead of shifting the whole line. */
+function insertTwoSpaces(view: EditorView): boolean {
+  view.dispatch({
+    ...view.state.replaceSelection("  "),
+    scrollIntoView: true,
+    userEvent: "input",
+  });
+  return true;
+}
+
 export function createEditorExtensions(
   callbacks: EditorCallbacks,
   language: "mcfunction" | "json" = "mcfunction",
@@ -194,25 +212,19 @@ export function createEditorExtensions(
     highlightSelectionMatches(),
     lintGutter(),
     language === "json" ? linter(jsonParseLinter(), { delay: 300 }) : linter(lintSource, { delay: 450 }),
-    Prec.high(
+    Prec.highest(
       keymap.of([
         {
-          key: "Mod-Enter",
+          key: "Tab",
           preventDefault: true,
-          run: () => {
-            callbacks.onRun?.();
-            return true;
+          run: (view) => {
+            if (completionStatus(view.state) === "active") {
+              acceptCompletion(view);
+              return true;
+            }
+            return insertTwoSpaces(view);
           },
         },
-        {
-          key: "Mod-s",
-          preventDefault: true,
-          run: () => {
-            callbacks.onSave?.();
-            return true;
-          },
-        },
-        indentWithTab,
       ]),
     ),
     keymap.of([

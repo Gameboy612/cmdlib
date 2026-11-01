@@ -2,6 +2,7 @@
 
 import { useWorkbench, type MobilePanel } from "@/lib/state/workbench";
 import { CodePanel, ConsolePanel, ExplorerPanel, PreviewPanel, ProblemsPanel } from "./panels";
+import { TimelinePanel } from "./TimelinePanel";
 import styles from "./editor.module.css";
 
 const TABS: Array<{ id: MobilePanel; label: string }> = [
@@ -10,6 +11,7 @@ const TABS: Array<{ id: MobilePanel; label: string }> = [
   { id: "preview", label: "World" },
   { id: "console", label: "Console" },
   { id: "problems", label: "Problems" },
+  { id: "timeline", label: "Timeline" },
 ];
 
 export function MobileWorkspace() {
@@ -40,6 +42,7 @@ export function MobileWorkspace() {
         {panel === "preview" && <PreviewPanel />}
         {panel === "console" && <ConsolePanel />}
         {panel === "problems" && <ProblemsPanel />}
+        {panel === "timeline" && <TimelinePanel />}
       </div>
     </div>
   );

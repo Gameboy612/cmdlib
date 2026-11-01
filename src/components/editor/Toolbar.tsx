@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useWorkbench } from "@/lib/state/workbench";
+import { useActiveWorkspace, useWorkbench } from "@/lib/state/workbench";
 import { VERSIONS, formatPackFormat } from "@/lib/mc/version";
 import { MenuBar } from "./MenuBar";
 import styles from "./editor.module.css";
@@ -13,6 +13,7 @@ export function Toolbar() {
   const setProjectName = useWorkbench((state) => state.setProjectName);
   const setVersion = useWorkbench((state) => state.setVersion);
   const runLoad = useWorkbench((state) => state.runLoad);
+  const workspace = useActiveWorkspace();
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(project.name);
@@ -31,6 +32,12 @@ export function Toolbar() {
         </Link>
         <MenuBar />
         <span className={styles.toolbarDivider} />
+        {workspace && (
+          <Link href="/projects/" className={styles.workspaceLink} title="Switch project">
+            {workspace.name}
+            <span>/</span>
+          </Link>
+        )}
         {editing ? (
           <input
             className={styles.projectInput}
@@ -77,8 +84,8 @@ export function Toolbar() {
       </div>
 
       <div className={styles.toolbarCenter}>
-        <button type="button" className={styles.runButton} onClick={runLoad} title="Run load tags">
-          <span aria-hidden>▶</span> Run
+        <button type="button" className={styles.runButton} onClick={runLoad} title="Run /reload">
+          <span aria-hidden>⟳</span> /reload
         </button>
       </div>
 
@@ -87,8 +94,8 @@ export function Toolbar() {
           type="button"
           className={styles.mobileRun}
           onClick={runLoad}
-          aria-label="Run load tags"
-          title="Run load tags"
+          aria-label="Run /reload"
+          title="Run /reload"
         >
           ▶
         </button>
@@ -96,9 +103,11 @@ export function Toolbar() {
           type="button"
           className={styles.paletteButton}
           onClick={() => setPaletteOpen(true)}
-          title="Command palette"
+          title="Command palette (Mod+K)"
+          aria-label="Command palette"
         >
-          Palette
+          <img src={asset("/art/mark.svg")} alt="" width={13} height={13} />
+          <span>K</span>
         </button>
       </div>
     </header>

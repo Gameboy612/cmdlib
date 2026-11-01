@@ -95,7 +95,7 @@ export function WorkbenchSection() {
             <div className={styles.deskChrome}>
               <span className={styles.deskTab}>demo.mcfunction</span>
               <span className={styles.deskTabMuted}>load.mcfunction</span>
-              <span className={styles.deskRun}>F5 run</span>
+              <span className={styles.deskRun}>/reload</span>
             </div>
             <div className={styles.deskCode}>
               <div><span>1</span><code><b>scoreboard</b> players add <i>@s</i> points <em>50</em></code></div>

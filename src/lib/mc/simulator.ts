@@ -1,4 +1,5 @@
 import { World } from "./world";
+import type { ScheduledFunction } from "./world";
 import type { EntityData } from "./entities";
 import type { NbtTag } from "./nbt";
 import { CommandError, Cursor } from "./cursor";
@@ -12,6 +13,19 @@ import { HANDLERS } from "./commands";
 export interface RunOutcome extends CommandResult {
   ok: boolean;
   error?: string;
+}
+
+/** Result of one `Simulator.tick()`, deliberately small and serialisable. */
+export interface TickOutcome {
+  /** World tick after the increment (starts at 1). */
+  tick: number;
+  /** True when a `minecraft:tick` function tag existed and was invoked. */
+  tickTagRan: boolean;
+  /** Number of scheduled functions that became due and were run. */
+  scheduledRan: number;
+  /** Errors raised by the tick tag or due scheduled functions. */
+  errors: string[];
+  ok: boolean;
 }
 
 export interface SimulatorOptions {
@@ -132,6 +146,76 @@ export class Simulator implements Runtime {
       );
     }
     return ran;
+  }
+
+  /* ------------------------------- ticking ---------------------------- */
+
+  /** Read-only view of the world's `/schedule function` queue. */
+  get scheduled(): readonly ScheduledFunction[] {
+    return this.world.scheduled;
+  }
+
+  /** Remove queued schedules for one function, or all of them. */
+  clearSchedules(functionId?: string): number {
+    const removed = this.world.clearSchedules(functionId);
+    if (removed > 0) this.world.touch();
+    return removed;
+  }
+
+  /**
+   * Advance the simulation by exactly one game tick.
+   *
+   * Order matches the runtime contract: bump `world.tick`, run every value of
+   * the `minecraft:tick` function tag, then run the functions that were due at
+   * the start of that pass. The due list is collected *after* the tag so a tick
+   * function may safely call `/schedule` (including `0t`); entries added by a
+   * due function itself wait for the next tick, which prevents a same-tick
+   * reschedule loop from stalling the UI.
+   *
+   * Errors are logged and returned rather than thrown; the simulation always
+   * ends with one `touch()` so React subscribers see the new tick.
+   */
+  tick(): TickOutcome {
+    this.world.tick += 1;
+    const tick = this.world.tick;
+    const errors: string[] = [];
+    let tickTagRan = false;
+    this.world.resetCommandBudget();
+
+    if (this.world.getFunctionTag("minecraft:tick")) {
+      tickTagRan = true;
+      try {
+        // `runFunction` delegates tags to the existing cycle-safe runner.
+        this.runFunction("#minecraft:tick", null, this.baseContext());
+      } catch (error) {
+        const message = this.formatError(error);
+        errors.push(message);
+        this.world.log("error", message);
+      }
+    }
+
+    const due = this.world.collectDueSchedules(tick);
+    for (const entry of due) {
+      try {
+        this.runFunction(entry.functionId, null, this.baseContext());
+      } catch (error) {
+        const message = this.formatError(error);
+        errors.push(message);
+        this.world.log(
+          "error",
+          `[scheduled ${entry.functionId}] ${message}`,
+        );
+      }
+    }
+
+    this.world.touch();
+    return {
+      tick,
+      tickTagRan,
+      scheduledRan: due.length,
+      errors,
+      ok: errors.length === 0,
+    };
   }
 
   private baseContext(quiet = false): CommandContext {

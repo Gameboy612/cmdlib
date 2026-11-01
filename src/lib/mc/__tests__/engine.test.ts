@@ -157,3 +157,36 @@ describe("version profiles", () => {
     expect(getVersion("1.20").macros).toBe(false);
   });
 });
+
+describe("scoreboard integer bounds", () => {
+  it("clamps arithmetic to the Java 32-bit signed range", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard players set @s points 2147483647");
+    sim.runCommand("scoreboard players add @s points 1");
+    expect(sim.world.getScore("Dev", "points")).toBe(2147483647);
+
+    sim.runCommand("scoreboard players set @s streak 2");
+    sim.runCommand("scoreboard players operation @s points *= @s streak");
+    expect(sim.world.getScore("Dev", "points")).toBe(2147483647);
+
+    sim.runCommand("scoreboard players set @s points -2147483648");
+    sim.runCommand("scoreboard players remove @s points 1");
+    expect(sim.world.getScore("Dev", "points")).toBe(-2147483648);
+
+    sim.world.setScore("Dev", "points", Number.POSITIVE_INFINITY);
+    expect(sim.world.getScore("Dev", "points")).toBe(2147483647);
+    sim.world.setScore("Dev", "points", -1e20);
+    expect(sim.world.getScore("Dev", "points")).toBe(-2147483648);
+  });
+
+  it("rejects score arguments outside the signed 32-bit range", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    const outcome = sim.runCommand("scoreboard players set @s points 2147483648");
+    expect(outcome.ok).toBe(false);
+    expect(sim.world.getScore("Dev", "points") ?? 0).toBe(0);
+  });
+});

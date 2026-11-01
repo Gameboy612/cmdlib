@@ -1,6 +1,7 @@
 import { Cursor } from "../cursor";
 import { CompoundTag, NbtTag, Tag } from "../nbt";
 import { DISPLAY_SLOTS, SCOREBOARD_CRITERIA } from "../data";
+import { SCOREBOARD_MAX, SCOREBOARD_MIN } from "../world";
 import {
   resolveHolderTargets,
   resolveSingleHolder,
@@ -11,6 +12,18 @@ import { CommandContext, CommandResult, feedback, print } from "./context";
 import { CommandError } from "../cursor";
 
 type Handler = (cursor: Cursor, ctx: CommandContext) => CommandResult;
+
+function readScoreValue(cursor: Cursor): number {
+  const value = cursor.readInt();
+  if (value.value < SCOREBOARD_MIN || value.value > SCOREBOARD_MAX) {
+    cursor.error(
+      `Score must be between ${SCOREBOARD_MIN} and ${SCOREBOARD_MAX}`,
+      value.start,
+      "score-range",
+    );
+  }
+  return value.value;
+}
 
 export const scoreboardHandler: Handler = (cursor, ctx) => {
   const group = cursor.readWord();
@@ -204,7 +217,7 @@ function players(cursor: Cursor, ctx: CommandContext): CommandResult {
 
   switch (action) {
     case "set": {
-      const value = cursor.readInt();
+      const value = { value: readScoreValue(cursor) };
       for (const target of holders) {
         if (!ctx.lint) ctx.world.setScore(target.holder, objectiveName!, value.value);
       }
@@ -219,7 +232,7 @@ function players(cursor: Cursor, ctx: CommandContext): CommandResult {
     }
     case "add":
     case "remove": {
-      const value = cursor.readInt();
+      const value = { value: readScoreValue(cursor) };
       const delta = action === "add" ? value.value : -value.value;
       for (const target of holders) {
         if (!ctx.lint) ctx.world.addScore(target.holder, objectiveName!, delta);

@@ -70,6 +70,34 @@ export interface FunctionTag {
   path?: string;
 }
 
+/**
+ * One `/schedule function` entry. A function id may have more than one entry
+ * when it was queued with `append`; `sequence` keeps that queue stable when
+ * two entries share a due tick.
+ */
+/** Minecraft scoreboards store Java 32-bit signed integers. */
+export const SCOREBOARD_MIN = -2147483648;
+export const SCOREBOARD_MAX = 2147483647;
+
+export function clampScore(value: number): number {
+  const whole = Math.trunc(value);
+  if (Number.isNaN(whole)) return 0;
+  if (whole > SCOREBOARD_MAX) return SCOREBOARD_MAX;
+  if (whole < SCOREBOARD_MIN) return SCOREBOARD_MIN;
+  return whole;
+}
+
+export interface ScheduledFunction {
+  /** Function resource location, e.g. `cmdlib:tick`. */
+  functionId: string;
+  /** World tick at which the command was run. */
+  scheduledAtTick: number;
+  /** Absolute world tick on which the function becomes due. */
+  dueTick: number;
+  /** Monotonic insertion order, used to break due-tick ties. */
+  sequence: number;
+}
+
 export interface WorldOptions {
   version: VersionProfile;
   seedPlayer?: boolean;
@@ -104,6 +132,8 @@ export class World {
   selectedEntity: string | null = null;
   private listeners = new Set<() => void>();
   private commandBudget = 0;
+  private scheduleQueue: ScheduledFunction[] = [];
+  private scheduleSequence = 0;
 
   constructor(options: WorldOptions) {
     this.version = options.version ?? getVersion("26.3");
@@ -184,7 +214,7 @@ export class World {
       map = new Map();
       this.scores.set(objective, map);
     }
-    map.set(holder, Math.trunc(value));
+    map.set(holder, clampScore(value));
   }
 
   getScore(holder: string, objective: string): number | undefined {
@@ -193,7 +223,7 @@ export class World {
 
   addScore(holder: string, objective: string, delta: number): number {
     this.requireObjective(objective);
-    const next = (this.getScore(holder, objective) ?? 0) + delta;
+    const next = clampScore((this.getScore(holder, objective) ?? 0) + delta);
     this.setScore(holder, objective, next);
     return next;
   }
@@ -350,6 +380,76 @@ export class World {
 
   getFunctionTag(id: string): FunctionTag | undefined {
     return this.functionTags.get(id);
+  }
+
+  /* ------------------------------ schedule ---------------------------- */
+
+  /**
+   * Current `/schedule function` queue, ordered by due tick then sequence.
+   * Read-only: mutate through `scheduleFunction` / `clearSchedules` so the
+   * sequence counter and ordering stay consistent.
+   */
+  get scheduled(): readonly ScheduledFunction[] {
+    return this.scheduleQueue;
+  }
+
+  /**
+   * Queue a function. `replace` (the default) drops any existing entries for
+   * the same function first; `append` keeps them and adds another entry.
+   */
+  scheduleFunction(
+    functionId: string,
+    delayTicks: number,
+    mode: "replace" | "append" = "replace",
+  ): ScheduledFunction {
+    if (mode === "replace") this.clearSchedules(functionId);
+    // The command parser only accepts integers, but keep the state honest if
+    // another caller passes a fractional or negative delay.
+    const delay = Math.max(0, Math.trunc(delayTicks));
+    const entry: ScheduledFunction = {
+      functionId,
+      scheduledAtTick: this.tick,
+      dueTick: this.tick + delay,
+      sequence: ++this.scheduleSequence,
+    };
+    this.scheduleQueue.push(entry);
+    this.scheduleQueue.sort(
+      (a, b) => a.dueTick - b.dueTick || a.sequence - b.sequence,
+    );
+    return entry;
+  }
+
+  /** Remove every entry for `functionId`, or the whole queue when omitted. */
+  clearSchedules(functionId?: string): number {
+    if (functionId === undefined) {
+      const removed = this.scheduleQueue.length;
+      this.scheduleQueue = [];
+      return removed;
+    }
+    const before = this.scheduleQueue.length;
+    this.scheduleQueue = this.scheduleQueue.filter(
+      (entry) => entry.functionId !== functionId,
+    );
+    return before - this.scheduleQueue.length;
+  }
+
+  /**
+   * Atomically take every entry due at or before `currentTick`. The tick
+   * runtime calls this once per tick, so functions queued by the tick tag are
+   * handled by the same pass while functions queued by a due function wait for
+   * the next tick.
+   */
+  collectDueSchedules(currentTick: number = this.tick): ScheduledFunction[] {
+    if (this.scheduleQueue.length === 0) return [];
+    const due: ScheduledFunction[] = [];
+    const remaining: ScheduledFunction[] = [];
+    for (const entry of this.scheduleQueue) {
+      if (entry.dueTick <= currentTick) due.push(entry);
+      else remaining.push(entry);
+    }
+    if (due.length === 0) return [];
+    this.scheduleQueue = remaining;
+    return due;
   }
 
   /* -------------------------------- logs ------------------------------ */

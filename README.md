@@ -15,6 +15,8 @@ any file server.
 
 ![cmdlib editor with live world preview](docs/screenshots/editor.png)
 
+![cmdlib projects page](docs/screenshots/projects.png)
+
 ---
 
 ## Quick start
@@ -41,25 +43,42 @@ path as well.
 
 ---
 
+## Projects
+
+Open `/projects/`. A project groups one or more datapacks (packs); files stay in
+the browser. You can create, rename and delete projects, add packs to a project,
+or paste a public GitHub repository/folder URL and import every datapack it
+contains as a new local project.
+
 ## Editor
 
 Open `/editor/`. The starter pack is already loaded:
 
-1. **Run** reloads the pack and runs `#minecraft:load`.
-2. Write commands into `load.mcfunction`; `tick.mcfunction` is the second
-   scaffolded file, wired to the `minecraft:tick` tag.
-3. Type a command in the console, for example `say hello`.
-4. The command palette is available from the top-right *Palette* button or
+1. **/reload** reloads the pack and runs `#minecraft:load`.
+2. **Run file** at the editor's top-right runs the active function.
+3. `tick.mcfunction` is wired to `minecraft:tick`; open **Timeline** to
+   play/pause, step, or change tick speed. `/schedule function` and
+   `/schedule clear` are simulated.
+4. Type a command in the console, for example `say hello`.
+5. The command palette is the **cmdlib mark + K** button, or
    `Ctrl/Cmd + K`.
-5. `Ctrl/Cmd + Space` opens autocomplete.
-6. Right-click a file or folder for **Open / Run function / Rename / Duplicate /
+6. `Ctrl/Cmd + Space` opens autocomplete. `Tab` accepts the active suggestion.
+7. Right-click a file or folder for **Open / Run function / Rename / Duplicate /
    Delete / Copy path**; right-click a dock tab for close/float/maximize;
    right-click an entity in the preview for **Inspect / Teleport / Copy NBT**.
-
-The simulator runs load tags; `tick.mcfunction` is scaffolded and linted, but
-there is no background game-tick loop.
+   Right-drag the preview to rotate it.
+8. Create, rename and delete files inline in the Explorer — no browser dialogs —
+   and drag files between folders to move them.
+9. **File → Preferences** records custom keybindings. **View** ticks panels that
+   are already open.
+10. New packs are added beside the current pack, not instead of it. **+ tag**
+    creates function, item, block, entity type, fluid or game event tags.
+11. Scores are clamped to Minecraft's signed 32-bit range
+    (`-2,147,483,648 … 2,147,483,647`) and list 50 holders per page.
 
 ![Right-click context menu on a preview entity](docs/screenshots/context-menu.png)
+
+![Timeline and scheduled functions](docs/screenshots/timeline.png)
 
 Everything is stored in `localStorage`. **File → Export** writes a standard
 datapack `.zip`; **File → Import** reads one back.
@@ -70,7 +89,7 @@ datapack `.zip`; **File → Import** reads one back.
 
 | Area | Commands | Notes |
 | --- | --- | --- |
-| Scoreboards | `scoreboard objectives add/remove/list/modify/setdisplay`, `scoreboard players set/add/remove/reset/get/operation/display` | Criterion validation, display slots, sidebar HUD |
+| Scoreboards | `scoreboard objectives add/remove/list/modify/setdisplay`, `scoreboard players set/add/remove/reset/get/operation/display` | Criterion validation, display slots, sidebar HUD, signed 32-bit bounds, paginated inspector |
 | Titles | `title … title/subtitle/actionbar/times/reset/clear` | Text components with style inheritance, score/selector resolution, timed fades |
 | Functions | `function <id>`, `function <id> {…}`, `function <id> with storage/entity/block …` | Function tags, recursion limit, 65 536-command chain cap |
 | Macros | `$` lines with `$(key)` interpolation, `$$(` escaping | Missing arguments and newline injection are rejected |
@@ -79,14 +98,15 @@ datapack `.zip`; **File → Import** reads one back.
 | Execute | `as`, `at`, `positioned`, `align`, `rotated`, `facing`, `in`, `if`/`unless`, `store`, `run` | `if score`, `if entity`, `if block`, `if data`, `if dimension`, `if loaded` |
 | Entities | `summon`, `kill`, `teleport`/`tp`, `tag` | Static objects with position + NBT; **no AI and no physics** |
 | Chat | `say`, `tellraw`, `me` | Rendered with Minecraft colour codes and component styles |
+| Scheduling | `schedule function`, `schedule clear` | Tick queue driven by the Timeline; `t`/`s`/`d` durations |
 | Misc | `return`, `return run`, `setblock`, `reload` | `return` stops a function with a value |
 
 ### Deliberately not simulated
 
 `give`, `effect`, `gamemode`, `particle`, `playsound`, `loot`, `advancement`,
-`worldborder`, `schedule`, `bossbar` and the other commands outside the table
-above are **recognised by the linter** with their 26.3 metadata, but the runtime
-reports them as unsupported. They do not silently fail.
+`worldborder`, `bossbar` and the other commands outside the table above are
+**recognised by the linter** with their 26.3 metadata, but the runtime reports
+them as unsupported. They do not silently fail.
 
 Entities are not game entities in the AI sense. They are objects:
 

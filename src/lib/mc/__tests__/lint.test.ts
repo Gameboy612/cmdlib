@@ -74,4 +74,30 @@ describe("linter", () => {
   it("matches 26.3 pack format", () => {
     expect(getVersion("26.3").packFormat).toEqual([121, 0]);
   });
+
+  it("lints non-function tags without function checks", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/tags/item/ores.json"] = JSON.stringify({
+      values: ["minecraft:iron_ore", "#minecraft:coal_ores"],
+    });
+    project.files["data/cmdlib/tags/block/stone.json"] = JSON.stringify({
+      values: ["minecraft:stone"],
+    });
+    project.files["data/cmdlib/tags/entity_type/hostiles.json"] = JSON.stringify({
+      values: ["minecraft:zombie"],
+    });
+    const report = lintProject(project);
+    expect(report.diagnostics.some((d) => d.code.startsWith("unknown-function"))).toBe(false);
+    expect(report.errors).toBe(0);
+  });
+
+  it("reports malformed tag files with a tag-specific code", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/tags/item/broken.json"] = "{ values: [";
+    project.files["data/cmdlib/tags/block/empty.json"] = JSON.stringify({ values: 1 });
+    const report = lintProject(project);
+    const codes = report.diagnostics.map((d) => d.code);
+    expect(codes).toContain("invalid-tag-json");
+    expect(codes).toContain("missing-tag-values");
+  });
 });

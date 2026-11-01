@@ -1,0 +1,272 @@
+/* Preferences modal — dark/orange, self-contained (does not touch editor.module.css). */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: grid;
+  place-items: center;
+  padding: 24px 18px;
+  background: rgba(4, 6, 8, 0.66);
+  backdrop-filter: blur(7px);
+  animation: overlayIn 0.16s ease-out;
+}
+
+.dialog {
+  width: min(560px, 100%);
+  max-height: min(86vh, 640px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #303841;
+  border-radius: 11px;
+  background: #101419;
+  color: var(--text);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.72);
+  overflow: hidden;
+  animation: dialogIn 0.2s var(--ease);
+}
+
+/* Header ------------------------------------------------------------- */
+.header {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #232b33;
+}
+.heading { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.title {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.2;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.close {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s;
+}
+.close:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+
+/* Body --------------------------------------------------------------- */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 4px;
+}
+.description {
+  margin: 12px 16px 10px;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 14px;
+  padding: 0 16px 6px;
+  border-bottom: 1px solid #1c232b;
+  font-family: var(--mono);
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.columns span:last-child { text-align: right; }
+.list { display: flex; flex-direction: column; }
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 16px;
+  border-bottom: 1px solid rgba(233, 229, 220, 0.045);
+}
+.row:last-child { border-bottom: 0; }
+.row:hover { background: rgba(255, 255, 255, 0.02); }
+
+.rowLabel { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.actionLabel {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+.actionHint {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  line-height: 1.45;
+  color: var(--faint);
+}
+.conflict {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  line-height: 1.45;
+  color: var(--warn);
+}
+
+/* Recorder button ---------------------------------------------------- */
+.binding {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  justify-self: end;
+  min-width: 132px;
+  max-width: 230px;
+  padding: 5px 8px;
+  border: 1px solid #262e36;
+  border-radius: 5px;
+  background: #0d1115;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.binding:hover {
+  border-color: #3a434d;
+  background: #12181e;
+  color: var(--text);
+}
+.binding:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bindingRecording {
+  border-color: rgba(255, 122, 69, 0.65);
+  background: rgba(255, 122, 69, 0.08);
+  color: var(--accent-soft);
+  animation: recordPulse 1.4s ease-in-out infinite;
+}
+.bindingRecording:hover {
+  border-color: rgba(255, 122, 69, 0.85);
+  background: rgba(255, 122, 69, 0.11);
+  color: var(--accent-soft);
+}
+.bindingEmpty { border-style: dashed; }
+
+.key {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  line-height: 1.3;
+  min-width: 18px;
+  padding: 2px 5px;
+  border: 1px solid #2b333c;
+  border-radius: 3px;
+  background: #171d24;
+  color: var(--text-dim);
+  text-align: center;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+.recording { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 8.5px; }
+.recordDot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: recordBlink 1s steps(2, start) infinite;
+}
+.unassigned { font-family: var(--mono); font-size: 8px; font-style: italic; color: var(--faint); }
+
+/* Footer ------------------------------------------------------------- */
+.footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  border-top: 1px solid #232b33;
+  background: #0c1014;
+}
+.footerHint {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.footerActions { display: flex; align-items: center; gap: 6px; flex: none; }
+.reset,
+.done {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.reset { color: var(--muted); border-color: #29313a; }
+.reset:hover:not(:disabled) { color: var(--accent-soft); border-color: rgba(255, 122, 69, 0.4); }
+.reset:disabled { opacity: 0.35; cursor: default; }
+.done { color: #1a0e08; background: var(--accent); font-weight: 600; }
+.done:hover { background: var(--accent-strong); }
+
+/* Accessibility ------------------------------------------------------ */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Motion ------------------------------------------------------------- */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dialogIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes recordPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 69, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 122, 69, 0.12); }
+}
+@keyframes recordBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .dialog, .bindingRecording, .recordDot { animation: none; }
+}
+
+/* Responsive --------------------------------------------------------- */
+@media (max-width: 560px) {
+  .overlay { padding: 16px 12px; }
+  .dialog { max-height: calc(100vh - 32px); }
+  .description { margin: 10px 12px 8px; }
+  .columns { grid-template-columns: minmax(0, 1fr) auto; padding: 0 12px 6px; }
+  .row { gap: 10px; padding: 9px 12px; }
+  .binding { min-width: 92px; max-width: 150px; padding: 5px 6px; }
+  .key { font-size: 8px; padding: 2px 4px; }
+  .footer { flex-wrap: wrap; gap: 7px; padding: 9px 12px; }
+  .footerHint { white-space: normal; }
+  .footerActions { width: 100%; justify-content: flex-end; }
+}

@@ -91,7 +91,7 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
     report({
       path: error.path,
       severity: "error",
-      code: "invalid-folder",
+      code: error.code ?? "invalid-folder",
       message: error.message,
       line: 1,
       column: 1,
@@ -99,12 +99,15 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
       endColumn: Math.max(1, content.split(/\r?\n/)[0]?.length ?? 1),
       from: 0,
       to: Math.max(1, content.split(/\r?\n/)[0]?.length ?? 1),
-      quickFix: [
-        {
-          title: `Migrate to ${version.id}`,
-          action: "migrate-folders",
-        },
-      ],
+      quickFix:
+        error.code === "invalid-folder"
+          ? [
+              {
+                title: `Migrate to ${version.id}`,
+                action: "migrate-folders",
+              },
+            ]
+          : undefined,
     });
   }
 
@@ -414,12 +417,31 @@ function lintFunctionTags(
 ): void {
   const functions = new Set(parsed.functions.map((f) => f.id));
   const tags = new Map(parsed.tags.map((t) => [t.id, t]));
+  // Function tags alone own function existence checks. Item/block/entity_type/
+  // fluid/game_event tags were parsed for validity but must not mark functions
+  // as used or require a function target.
+  const functionEntries = new Map(
+    parsed.allTags.filter((tag) => tag.kind === "function").map((tag) => [tag.id, tag.entries]),
+  );
   for (const tag of parsed.tags) {
     const content = project.files[tag.path ?? ""] ?? "";
     const lines = content.split(/\r?\n/);
-    for (const value of tag.values) {
-      const target = value.startsWith("#") ? value.slice(1) : value;
-      if (value.startsWith("#")) {
+    const entries =
+      functionEntries.get(tag.id) ??
+      tag.values.map((value) => ({
+        ok: true as const,
+        raw: value,
+        id: value.startsWith("#") ? value.slice(1) : value,
+        namespace: "",
+        path: "",
+        reference: value.startsWith("#"),
+        required: true,
+      }));
+    for (const entry of entries) {
+      // Optional entries are allowed to be absent at runtime.
+      if (!entry.required) continue;
+      const target = entry.id;
+      if (entry.reference) {
         if (!tags.has(target)) {
           report({
             path: tag.path ?? "",
@@ -847,7 +869,11 @@ export const LINT_CODES: Record<string, string> = {
   "macro-required": "A function with $ lines must be called with arguments.",
   "macro-argument": "A call site is missing a macro argument used by the function.",
   "pack-format-mismatch": "pack.mcmeta targets a different game version.",
-  "invalid-folder": "Folder names changed in 1.21 (functions → function).",
+  "invalid-folder": "Folder names changed in 1.21 (functions → function, tags/items → tags/item).",
+  "invalid-tag-id": "A tag file's namespace or path is not a valid resource location.",
+  "invalid-tag-json": "A tag file is not valid JSON (or is not a JSON object).",
+  "missing-tag-values": "A tag file does not contain a 'values' array.",
+  "invalid-tag-value": "A tag value is not a valid id/reference or object entry.",
   "unused-function": "The function is not referenced by a tag or another function.",
   "undisplayed-objective": "The objective is declared but not displayed or read.",
   "tag-cycle": "A function tag includes itself.",

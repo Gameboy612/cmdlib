@@ -7,6 +7,7 @@ export * from "./entities";
 export * from "./selectors";
 export * from "./world";
 export * from "./version";
+export * from "./tag-kinds";
 export * from "./datapack";
 export * from "./cursor";
 export * from "./simulator";

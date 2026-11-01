@@ -7,6 +7,9 @@ import { useMediaQuery } from "@/lib/hooks/useMedia";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
+import { Preferences } from "./Preferences";
+import { usePreferences } from "@/lib/state/preferences";
+import { matchesBinding } from "@/lib/keybindings";
 import { ToastHost } from "./Toast";
 import { MobileWorkspace } from "./MobileWorkspace";
 import styles from "./editor.module.css";
@@ -30,30 +33,60 @@ export function EditorShell() {
   const layoutNonce = useWorkbench((state) => state.layoutNonce);
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const runLoad = useWorkbench((state) => state.runLoad);
+  const runActive = useWorkbench((state) => state.runActive);
   const showToast = useWorkbench((state) => state.showToast);
+  const preferencesOpen = useWorkbench((state) => state.preferencesOpen);
+  const setPreferencesOpen = useWorkbench((state) => state.setPreferencesOpen);
+  const keybindings = usePreferences((state) => state.keybindings);
+  const hydratePreferences = usePreferences((state) => state.hydrate);
   const narrow = useMediaQuery("(max-width: 900px)");
 
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydratePreferences();
+  }, [hydrate, hydratePreferences]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const meta = event.metaKey || event.ctrlKey;
-      if (event.key === "F5") {
+      if (useWorkbench.getState().preferencesOpen) return;
+      if (event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT";
+      if (matchesBinding(event, keybindings.reload)) {
         event.preventDefault();
+        event.stopPropagation();
         runLoad();
-      } else if (meta && event.key.toLowerCase() === "k") {
+      } else if (!typing && matchesBinding(event, keybindings.runActive)) {
         event.preventDefault();
+        event.stopPropagation();
+        runActive();
+      } else if (matchesBinding(event, keybindings.palette)) {
+        event.preventDefault();
+        event.stopPropagation();
         setPaletteOpen(true);
-      } else if (meta && event.key.toLowerCase() === "s") {
+      } else if (matchesBinding(event, keybindings.preferences)) {
         event.preventDefault();
+        event.stopPropagation();
+        setPreferencesOpen(true);
+      } else if (matchesBinding(event, keybindings.save)) {
+        event.preventDefault();
+        event.stopPropagation();
         showToast("Pack saved to this browser", "success");
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [runLoad, setPaletteOpen, showToast]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [
+    keybindings,
+    runActive,
+    runLoad,
+    setPaletteOpen,
+    setPreferencesOpen,
+    showToast,
+  ]);
 
   if (!hydrated) return <BootScreen />;
 
@@ -65,6 +98,7 @@ export function EditorShell() {
       </main>
       <StatusBar />
       <CommandPalette />
+      <Preferences open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
       <ToastHost />
     </div>
   );

@@ -31,6 +31,7 @@ export function createDemoProject(versionId = "26.3"): Project {
         );
 
   return {
+    id: "pack-bounty-board",
     name: "Bounty Board",
     versionId: version.id,
     activePath: `data/${ns}/${fn}/demo.mcfunction`,

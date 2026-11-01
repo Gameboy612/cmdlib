@@ -52,6 +52,17 @@ export function WorldView({
     dragging: false,
     moved: false,
   });
+  const rotate = useRef<{ x: number; y: number; travel: number; active: boolean; moved: boolean }>({
+    x: 0,
+    y: 0,
+    travel: 0,
+    active: false,
+    moved: false,
+  });
+  const pendingContext = useRef<{
+    event: React.MouseEvent<HTMLCanvasElement>;
+    entity: EntityData | null;
+  } | null>(null);
   const positions = useRef(new Map<string, { x: number; y: number; entity: EntityData }>());
 
   const textContext = useMemo(
@@ -338,7 +349,22 @@ export function WorldView({
   };
 
   const onPointerDown = (event: React.PointerEvent) => {
-    if (!interactive || event.button !== 0) return;
+    if (!interactive) return;
+    if (event.button === 2) {
+      pendingContext.current = null;
+      rotate.current = {
+        x: event.clientX,
+        y: event.clientY,
+        travel: 0,
+        active: true,
+        moved: false,
+      };
+      pointer.current.dragging = false;
+      setHovered(null);
+      (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
     pointer.current = {
       x: event.clientX,
       y: event.clientY,
@@ -349,6 +375,21 @@ export function WorldView({
   };
   const onPointerMove = (event: React.PointerEvent) => {
     if (!interactive) return;
+    if (rotate.current.active) {
+      const dx = event.clientX - rotate.current.x;
+      const dy = event.clientY - rotate.current.y;
+      rotate.current.travel += Math.abs(dx) + Math.abs(dy);
+      if (rotate.current.travel > 4) rotate.current.moved = true;
+      rotate.current.x = event.clientX;
+      rotate.current.y = event.clientY;
+      if (dx !== 0) {
+        // About 90px of horizontal travel per quarter turn.
+        const angle = (camera.current.angle + dx / 90) % 4;
+        camera.current.angle = angle < 0 ? angle + 4 : angle;
+        draw();
+      }
+      return;
+    }
     if (pointer.current.dragging) {
       const dx = event.clientX - pointer.current.x;
       const dy = event.clientY - pointer.current.y;
@@ -364,7 +405,18 @@ export function WorldView({
     }
   };
   const onPointerUp = (event: React.PointerEvent) => {
-    if (!interactive || event.button !== 0) return;
+    if (!interactive) return;
+    if (event.button === 2) {
+      rotate.current.active = false;
+      const pending = pendingContext.current;
+      pendingContext.current = null;
+      if (pending) {
+        if (!rotate.current.moved) onContextMenu?.(pending.event, pending.entity);
+        rotate.current.moved = false;
+      }
+      return;
+    }
+    if (event.button !== 0) return;
     if (!pointer.current.moved) {
       const entity = pick(event.clientX, event.clientY);
       onSelect?.(entity?.uuid ?? null);
@@ -397,11 +449,25 @@ export function WorldView({
         onContextMenu={(event) => {
           if (!interactive) return;
           event.preventDefault();
+          if (rotate.current.active) {
+            // Some platforms fire the menu on right-button press. Defer the
+            // decision until the pointer is released so a drag can suppress it.
+            pendingContext.current = {
+              event,
+              entity: pick(event.clientX, event.clientY),
+            };
+            return;
+          }
+          if (rotate.current.moved) {
+            rotate.current.moved = false;
+            return;
+          }
           onContextMenu?.(event, pick(event.clientX, event.clientY));
         }}
         onPointerLeave={() => {
           setHovered(null);
           pointer.current.dragging = false;
+          rotate.current.active = false;
         }}
         aria-label="Isometric preview of the simulated Minecraft world"
       />
