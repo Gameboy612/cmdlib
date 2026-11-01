@@ -228,25 +228,52 @@ describe("unsupported command handling", () => {
 });
 
 describe("unset scores in execute if", () => {
-  it("treats two unset scores as equal", () => {
+  it("does not pass if either score is unset", () => {
     const project = createDemoProject("26.3");
     project.files["data/cmdlib/function/unset.mcfunction"] = [
       "scoreboard objectives add Score dummy",
-      "execute if score player Score = player Score run say PASS",
+      "execute if score player Score = player Score run say IF-PASS",
+      "execute unless score player Score = player Score run say UNLESS-PASS",
     ].join("\n");
     const sim = new Simulator({ project });
     sim.reset();
     sim.runCommand("function cmdlib:unset");
-    expect(sim.world.logs.some((entry) => entry.text.includes("PASS"))).toBe(true);
+    const logs = sim.world.logs.map((entry) => entry.text).join("\n");
+    expect(logs).not.toContain("IF-PASS");
+    expect(logs).toContain("UNLESS-PASS");
+  });
+
+  it("treats an existing zero score as set", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/zero.mcfunction"] = [
+      "scoreboard objectives add Zero dummy",
+      "scoreboard players set @s Zero 0",
+      "execute if score @s Zero = @s Zero run say ZERO-PASS",
+    ].join("\n");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("function cmdlib:zero");
+    expect(sim.world.logs.some((entry) => entry.text.includes("ZERO-PASS"))).toBe(true);
   });
 });
 
 describe("terminal execute if", () => {
-  it("passes without a run clause when two unset scores match", () => {
+  it("returns failure without a run clause when the score is unset", () => {
     const project = createDemoProject("26.3");
     const sim = new Simulator({ project });
     sim.reset();
     sim.runCommand("scoreboard objectives add tpa dummy");
+    const outcome = sim.runCommand("execute if score @s tpa = @s tpa");
+    expect(outcome.ok).toBe(true);
+    expect(outcome.success).toBe(false);
+  });
+
+  it("passes without a run clause once the score exists", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add tpa dummy");
+    sim.runCommand("scoreboard players set @s tpa 0");
     const outcome = sim.runCommand("execute if score @s tpa = @s tpa");
     expect(outcome.ok).toBe(true);
     expect(outcome.success).toBe(true);

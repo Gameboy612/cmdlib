@@ -276,8 +276,12 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
             lenient: true,
           });
           return holders.some((holder) => {
-            const value = ctx.world.getScore(holder.holder, objective) ?? 0;
-            return value >= range.min && value <= range.max;
+            const value = ctx.world.getScore(holder.holder, objective);
+            return (
+              value !== undefined &&
+              value >= range.min &&
+              value <= range.max
+            );
           });
         };
       }
@@ -312,9 +316,11 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
         } catch {
           sourceHolder = sourceRaw;
         }
-        const sourceValue = ctx.world.getScore(sourceHolder, sourceObjective) ?? 0;
+        const sourceValue = ctx.world.getScore(sourceHolder, sourceObjective);
+        if (sourceValue === undefined) return false;
         return targetHolders.some((holder) => {
-          const value = ctx.world.getScore(holder.holder, objective) ?? 0;
+          const value = ctx.world.getScore(holder.holder, objective);
+          if (value === undefined) return false;
           switch (op) {
             case "=":
             case "==":
