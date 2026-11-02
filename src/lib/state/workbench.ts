@@ -55,6 +55,8 @@ interface WorkbenchState {
   searchOpen: boolean;
   tickPlaying: boolean;
   tickSpeed: number;
+  playerSession: { username: string } | null;
+  joinOpen: boolean;
   mobilePanel: MobilePanel;
   layoutJson: string | null;
   layoutNonce: number;
@@ -104,6 +106,9 @@ interface WorkbenchState {
   setSearchOpen: (open: boolean) => void;
   setTickPlaying: (playing: boolean) => void;
   setTickSpeed: (speed: number) => void;
+  setJoinOpen: (open: boolean) => void;
+  joinAsPlayer: (username: string) => boolean;
+  leavePlayerSession: () => void;
   replaceAllInFiles: (
     query: string,
     replacement: string,
@@ -335,6 +340,8 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   searchOpen: false,
   tickPlaying: false,
   tickSpeed: 1,
+  playerSession: null,
+  joinOpen: false,
   mobilePanel: "editor",
   layoutJson: null,
   layoutNonce: 0,
@@ -960,6 +967,31 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
   setTickPlaying: (playing) => set({ tickPlaying: playing }),
   setTickSpeed: (speed) => set({ tickSpeed: speed }),
+  setJoinOpen: (open) => set({ joinOpen: open }),
+  joinAsPlayer: (username) => {
+    const name = username.trim();
+    if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) {
+      get().showToast("Username must be 1–16 letters, digits or underscores", "error");
+      return false;
+    }
+    const sim = get().sim;
+    if (!sim.world.renamePlayer(name)) {
+      get().showToast("That username is already in use", "error");
+      return false;
+    }
+    sim.permissionLevel = 0;
+    sim.world.logs = [];
+    sim.world.touch();
+    set({ playerSession: { username: name }, joinOpen: false, recentCommands: [] });
+    get().showToast(`Joined as ${name}`, "success");
+    return true;
+  },
+  leavePlayerSession: () => {
+    const name = get().playerSession?.username;
+    if (name) get().sim.world.renamePlayer("Dev");
+    get().sim.permissionLevel = 2;
+    set({ playerSession: null });
+  },
   replaceAllInFiles: (query, replacement, useRegex, caseSensitive) => {
     if (!query) return { matches: 0, files: 0 };
     const flags = `g${caseSensitive ? "" : "i"}m`;

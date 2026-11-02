@@ -25,6 +25,7 @@ const PACKS = [
   ["Functions", "Namespaced .mcfunction files, macros, function tags and load/tick tags."],
   ["Non-function tags", "Item, block, entity type, fluid and game event tags."],
   ["Predicates", "Datapack predicates with references, cycles and common condition types."],
+  ["Player mode", "Join as any username at permission level 0 with a restricted console, live inventory, item use and WASD movement. Operator panels are hidden."],
   ["Advancements", "Criteria, display data, rewards and a dockable Advancements panel. Tick and inventory triggers run rewards automatically."],
   ["Items & components", "Item IDs, 1.20.5+ components, stack counts, player slots, ender chests and item modifiers, with a dockable Inventory panel and right-click Use/Equip/book actions."],
   ["Imports", "Local ZIP projects, GitHub repositories, nested packs and multi-pack archives."],
@@ -137,7 +138,7 @@ export default function FeaturesPage() {
             <span><b>Versions</b> 1.13 – 26.3</span>
             <span><b>Runtime commands</b> 28</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 173 passing</span>
+            <span><b>Tests</b> 174 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

@@ -48,6 +48,8 @@ export interface SimulatorOptions {
 export class Simulator implements Runtime {
   project: Project;
   version: VersionProfile;
+  /** 0 when joined as a normal player; 2 for the editor/operator session. */
+  permissionLevel = 2;
   world: World;
   revision = 0;
   private listeners = new Set<() => void>();
@@ -399,6 +401,14 @@ export class Simulator implements Runtime {
 
   /** Run one console line. Errors are logged, not thrown. */
   runCommand(line: string, options: { quiet?: boolean } = {}): RunOutcome {
+    const commandName = line.trim().replace(/^\//, "").split(/\s+/, 1)[0]?.toLowerCase() ?? "";
+    const playerCommands = new Set(["help", "list", "me", "trigger"]);
+    if (this.permissionLevel === 0 && !playerCommands.has(commandName)) {
+      const message = `You do not have permission to use /${commandName || "that command"} (permission level 0).`;
+      this.world.log("error", message);
+      this.world.touch();
+      return { result: 0, success: false, ok: false, error: message };
+    }
     this.world.resetCommandBudget();
     const ctx = this.baseContext(options.quiet ?? false);
     this.currentLine = line;

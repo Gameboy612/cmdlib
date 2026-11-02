@@ -251,6 +251,23 @@ export const sayHandler: Handler = (cursor, ctx) => {
   return { result: 1, success: true };
 };
 
+export const helpHandler: Handler = (cursor, ctx) => {
+  feedback(
+    ctx,
+    "info",
+    "Level 0 commands: /help, /list, /me, /trigger",
+  );
+  return { result: 1, success: true };
+};
+
+export const listHandler: Handler = (_cursor, ctx) => {
+  const players = ctx.world.entities
+    .filter((entity) => entity.isPlayer && entity.username)
+    .map((entity) => entity.username);
+  feedback(ctx, "info", `Players online (${players.length}): ${players.join(", ")}`);
+  return { result: players.length, success: true };
+};
+
 export const meHandler: Handler = (cursor, ctx) => {
   const message = cursor.readRest();
   const name = ctx.source ? entityCustomName(ctx.source) : "Server";

@@ -16,6 +16,7 @@ export function Toolbar() {
   const tickPlaying = useWorkbench((state) => state.tickPlaying);
   const setTickPlaying = useWorkbench((state) => state.setTickPlaying);
   const sim = useWorkbench((state) => state.sim);
+  const setJoinOpen = useWorkbench((state) => state.setJoinOpen);
   const workspace = useActiveWorkspace();
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const [editing, setEditing] = useState(false);
@@ -121,6 +122,14 @@ export function Toolbar() {
           title="Run /reload"
         >
           ▶
+        </button>
+        <button
+          type="button"
+          className={styles.joinButton}
+          onClick={() => setJoinOpen(true)}
+          title="Join the world as a player"
+        >
+          Join as player
         </button>
         <button
           type="button"

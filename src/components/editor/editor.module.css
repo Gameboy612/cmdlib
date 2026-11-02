@@ -1420,3 +1420,15 @@
 .playButton:hover { color: var(--text); border-color: #3b464f; background: rgba(255, 255, 255, 0.035); }
 .playButtonActive { color: var(--ok); border-color: rgba(139, 213, 168, 0.3); background: rgba(139, 213, 168, 0.045); }
 @media (max-width: 900px) { .playButton { display: none; } }
+.joinButton {
+  height: 27px;
+  padding: 0 9px;
+  border: 1px solid rgba(198, 160, 91, 0.28);
+  border-radius: 4px;
+  color: #d8c49f;
+  font-family: var(--mono);
+  font-size: 8px;
+  white-space: nowrap;
+}
+.joinButton:hover { background: rgba(198, 160, 91, 0.08); border-color: rgba(198, 160, 91, 0.45); }
+@media (max-width: 600px) { .joinButton { display: none; } }

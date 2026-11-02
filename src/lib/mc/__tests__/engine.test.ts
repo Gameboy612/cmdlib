@@ -708,3 +708,18 @@ describe("score text components with selectors", () => {
     expect(sim.world.logs.some((entry) => entry.text === "42")).toBe(true);
   });
 });
+
+describe("player permission level", () => {
+  it("only allows level-0 commands in a player session", () => {
+    const sim = new Simulator({ project: createDemoProject("26.3") });
+    sim.reset();
+    sim.permissionLevel = 0;
+    expect(sim.runCommand("say hello").ok).toBe(false);
+    expect(sim.runCommand("me says hello").ok).toBe(true);
+    expect(sim.runCommand("help").ok).toBe(true);
+    expect(sim.runCommand("list").ok).toBe(true);
+    expect(sim.runCommand("data get entity @s SelectedItem").ok).toBe(false);
+    sim.permissionLevel = 2;
+    expect(sim.runCommand("say hello").ok).toBe(true);
+  });
+});

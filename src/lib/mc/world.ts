@@ -536,6 +536,25 @@ export class World {
     return true;
   }
 
+  renamePlayer(username: string): boolean {
+    const player = this.player();
+    if (!player || !player.isPlayer) return false;
+    const existing = this.entities.find(
+      (entity) => entity !== player && entity.isPlayer && entity.username === username,
+    );
+    if (existing) return false;
+    const oldKey = entityHolderName(player);
+    const state = this.playerStates.get(oldKey);
+    player.username = username;
+    player.nbt.value.CustomName = Tag.compound({ text: Tag.string(username) });
+    if (state) {
+      this.playerStates.delete(oldKey);
+      this.playerStates.set(username, state);
+    }
+    this.touch();
+    return true;
+  }
+
   playerSelectedSlot(target: EntityData | string | null = null): number {
     return this.playerState(target)?.selectedSlot ?? 0;
   }
@@ -1195,6 +1214,9 @@ export class World {
             origin: pos,
             lenient: true,
           }).map((entity) => {
+            if (entity.isPlayer && entity.username) {
+              return Tag.compound({ text: Tag.string(entity.username) });
+            }
             const custom = entity.nbt.value.CustomName;
             return custom ?? Tag.string(entityCustomName(entity));
           });

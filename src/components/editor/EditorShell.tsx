@@ -14,6 +14,8 @@ import { usePreferences } from "@/lib/state/preferences";
 import { matchesBinding } from "@/lib/keybindings";
 import { ToastHost } from "./Toast";
 import { MobileWorkspace } from "./MobileWorkspace";
+import { PlayerMode } from "./PlayerMode";
+import { JoinPlayerDialog } from "./JoinPlayerDialog";
 import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
 
@@ -43,6 +45,7 @@ export function EditorShell() {
   const keybindings = usePreferences((state) => state.keybindings);
   const hydratePreferences = usePreferences((state) => state.hydrate);
   const narrow = useMediaQuery("(max-width: 900px)");
+  const playerSession = useWorkbench((state) => state.playerSession);
 
   useEffect(() => {
     hydrate();
@@ -101,6 +104,7 @@ export function EditorShell() {
   ]);
 
   if (!hydrated) return <BootScreen />;
+  if (playerSession) return <PlayerMode />;
 
   return (
     <div className={styles.shell}>
@@ -113,6 +117,7 @@ export function EditorShell() {
       <CommandPalette />
       <SearchPanel />
       <Preferences open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <JoinPlayerDialog />
       <ToastHost />
     </div>
   );
