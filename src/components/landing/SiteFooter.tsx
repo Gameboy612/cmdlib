@@ -18,6 +18,7 @@ export function SiteFooter() {
           <div>
             <span>Product</span>
             <Link href="/editor/">Editor</Link>
+            <Link href="/features/">Supported features</Link>
             <a href="#run">Live runtime</a>
             <a href="#versions">Versions</a>
           </div>

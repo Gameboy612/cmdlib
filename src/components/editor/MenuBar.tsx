@@ -87,6 +87,10 @@ export function MenuBar() {
     window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/credits/`;
   };
 
+  const openFeatures = () => {
+    window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/features/`;
+  };
+
   const openProjects = () => {
     window.location.href = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/projects/`;
   };
@@ -157,6 +161,7 @@ export function MenuBar() {
     {
       label: "Help",
       items: [
+        { label: "Supported features", run: openFeatures },
         { label: "Credits & licenses", run: openCredits },
         { label: "GitHub repository", run: () => window.open("https://github.com/Gameboy612/cmdlib", "_blank", "noreferrer") },
       ],
