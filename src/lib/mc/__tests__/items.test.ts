@@ -85,3 +85,29 @@ describe("right-click item behavior", () => {
     expect(sim.world.getItemAt(player, "weapon.mainhand")).toBeUndefined();
   });
 });
+
+describe("execute if items", () => {
+  it("tests item ids and component predicates in slots", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand('give @s written_book[custom_data={set_color_book:true}] 1');
+    expect(
+      sim.runCommand(
+        'execute if items entity @s weapon.mainhand written_book[custom_data={set_color_book:true}] run say MATCH',
+      ).success,
+    ).toBe(true);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("MATCH")),
+    ).toBe(true);
+    expect(
+      sim.runCommand(
+        'execute if items entity @s hotbar.* written_book run say RANGE',
+      ).success,
+    ).toBe(true);
+    expect(
+      sim.runCommand(
+        'execute if items entity @s weapon.mainhand diamond run say NO',
+      ).success,
+    ).toBe(false);
+  });
+});

@@ -62,7 +62,7 @@ const COMMANDS = [
 const EXECUTE = [
   "as", "at", "anchored", "positioned", "align", "rotated", "facing", "in",
   "if entity", "if score", "if block", "if data", "if dimension",
-  "if predicate", "if function", "if loaded",
+  "if predicate", "if function", "if items entity", "if loaded",
   "unless", "store result", "store success", "run",
 ];
 
@@ -95,7 +95,7 @@ const NOT_SIMULATED = [
 
 const LIMITS = [
   ["Command coverage", "Commands outside the supported list produce a warning and continue. They do not halt a function."],
-  ["26.3 conditions", "/execute if items and /execute if slots are not simulated yet."],
+  ["26.3 conditions", "/execute if slots is not simulated yet; /execute if items entity is."],
   ["Number providers", "/data modify … compute is not simulated yet."],
   ["World model", "No mob AI, collision, physics, pathfinding or full block rendering."],
   ["Chunks", "/forceload does not load real chunk data; it is a simulation no-op."],
@@ -137,7 +137,7 @@ export default function FeaturesPage() {
             <span><b>Versions</b> 1.13 – 26.3</span>
             <span><b>Runtime commands</b> 28</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 164 passing</span>
+            <span><b>Tests</b> 165 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

@@ -657,10 +657,21 @@ function executeCompletion(
         keyword("data", "Checks that an NBT path exists."),
         keyword("dimension", "Checks the dimension."),
         keyword("function", "Runs a function and checks its success."),
+        keyword("items", "Checks an inventory slot for an item."),
         keyword("loaded", "Checks that a chunk is loaded."),
         keyword("items", "Checks an inventory slot (26.3)."),
         keyword("slots", "Counts matching slots (26.3)."),
       ]);
+    }
+    if (words[2] === "items") {
+      if (at === 3) return wrap([keyword("entity", "Check an entity's slots."), keyword("block", "Check a block container.")]);
+      if (at === 4) return wrap(targetOptions(index));
+      if (at === 5) {
+        return wrap(
+          ["weapon.mainhand", "weapon.offhand", "hotbar.*", "inventory.*", "container.*", "armor.*", "enderchest.*"]
+            .map((slot) => ({ label: slot, type: "variable", detail: "slot source" })),
+        );
+      }
     }
     if (words[2] === "entity" && at === 3) return wrap(targetOptions(index));
     if (words[2] === "function" && at === 3) {

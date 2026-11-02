@@ -1,5 +1,5 @@
 import { Cursor } from "../cursor";
-import { isList, NbtTag, Tag } from "../nbt";
+import { isCompound, isList, isNumeric, isString, NbtTag, Tag } from "../nbt";
 import { applyPathModify, getPathValues, parseNbtPath } from "../nbtPath";
 import {
   resolveEntityTargets,
@@ -8,6 +8,8 @@ import {
   SelectorError,
 } from "../selectors";
 import { entityPos, entityRotation, type EntityData } from "../entities";
+import { parseItemComponents } from "../items";
+import type { InventoryItem } from "../player";
 import { evaluatePredicate } from "../predicates";
 import { executeCommandLine } from "./context";
 import {
@@ -425,17 +427,37 @@ function parseCondition(cursor: Cursor, ctx: CommandContext): Condition {
       cursor.readVec3(ctx.pos, ctx.rotation);
       return () => true;
     }
-    case "items":
-    case "slots":
+    case "items": {
+      const sourceKind = cursor.readWord();
+      if (sourceKind === "entity") {
+        const raw = cursor.readTargetsRaw().raw;
+        const slotsText = cursor.readWord();
+        const slots = slotNames(slotsText);
+        const predicate = readItemPredicate(cursor);
+        return () => {
+          const entities = resolveEntityTargets(ctx.world, raw, {
+            source: ctx.source,
+            origin: ctx.pos,
+            lenient: true,
+          });
+          return entities.some((entity) =>
+            slots.some((slot) => {
+              const item = ctx.world.getItemAt(entity, slot);
+              return !!item && itemMatchesPredicate(item, predicate);
+            }),
+          );
+        };
+      }
       cursor.error(
-        `execute if ${kind} arrived in 26.3 and is not simulated yet.`,
+        "Only 'execute if items entity <targets> <slots> <item>' is simulated",
         start,
-        "unsupported",
+        "items-source",
       );
       break;
+    }
     default:
       cursor.error(
-        `Unknown condition '${kind}'. Expected entity, score, block, data, dimension, function, loaded or predicate.`,
+        `Unknown condition '${kind}'. Expected entity, score, block, data, dimension, function, items, loaded or predicate.`,
         start,
         "condition",
       );
@@ -589,3 +611,81 @@ function normalizeBlock(id: string): string {
 
 void isList;
 void feedback;
+
+
+interface ItemPredicate {
+  id: string;
+  components: Record<string, NbtTag>;
+  tag?: boolean;
+}
+
+function readItemPredicate(cursor: Cursor): ItemPredicate {
+  if (cursor.peek() === "#") {
+    cursor.readWord();
+    return { id: "", components: {}, tag: true };
+  }
+  const id = cursor.readResourceLocation();
+  let components: Record<string, NbtTag> = {};
+  cursor.skip();
+  if (cursor.peek() === "[") {
+    components = parseItemComponents(cursor.readBalanced());
+  }
+  return { id: id.includes(":") ? id : `minecraft:${id}`, components };
+}
+
+function slotNames(source: string): string[] {
+  const expand = (prefix: string, count: number) =>
+    Array.from({ length: count }, (_, i) => `${prefix}.${i}`);
+  if (source === "*") {
+    return [
+      "weapon.mainhand", "weapon.offhand",
+      "armor.head", "armor.chest", "armor.legs", "armor.feet",
+      ...expand("hotbar", 9), ...expand("inventory", 27),
+      ...expand("enderchest", 27),
+    ];
+  }
+  if (source === "weapon.*") return ["weapon.mainhand", "weapon.offhand"];
+  if (source === "armor.*") return ["armor.head", "armor.chest", "armor.legs", "armor.feet"];
+  if (source === "hotbar.*") return expand("hotbar", 9);
+  if (source === "inventory.*" || source === "container.*") return expand("inventory", 27);
+  if (source === "enderchest.*") return expand("enderchest", 27);
+  const range = /^(hotbar|inventory|container|enderchest)\.(\d+)-(\d+)$/.exec(source);
+  if (range) {
+    const prefix = range[1] === "container" ? "inventory" : range[1];
+    const start = Number(range[2]);
+    const end = Number(range[3]);
+    const out: string[] = [];
+    for (let i = start; i <= end; i++) out.push(`${prefix}.${i}`);
+    return out;
+  }
+  return [source];
+}
+
+function predicateComponentMatches(actual: NbtTag, expected: NbtTag): boolean {
+  if (isCompound(actual) && isCompound(expected)) {
+    return Object.entries(expected.value).every(
+      ([key, value]) =>
+        actual.value[key] !== undefined && predicateComponentMatches(actual.value[key], value),
+    );
+  }
+  if (isList(actual) && isList(expected)) {
+    return (
+      actual.value.length === expected.value.length &&
+      actual.value.every((entry, index) => predicateComponentMatches(entry, expected.value[index]))
+    );
+  }
+  if (isString(actual) && isString(expected)) return actual.value === expected.value;
+  if (isNumeric(actual) && isNumeric(expected)) return Number(actual.value) === Number(expected.value);
+  return false;
+}
+
+function itemMatchesPredicate(item: InventoryItem, predicate: ItemPredicate): boolean {
+  if (predicate.tag) return false;
+  if (item.id !== (predicate.id.includes(":") ? predicate.id : `minecraft:${predicate.id}`)) {
+    return false;
+  }
+  return Object.entries(predicate.components).every(([key, expected]) => {
+    const actual = item.components?.[key];
+    return actual !== undefined && predicateComponentMatches(actual, expected);
+  });
+}
