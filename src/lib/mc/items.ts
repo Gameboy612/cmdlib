@@ -1,4 +1,4 @@
-import { NbtTag, stringifySnbt } from "./nbt";
+import { isCompound, isList, isNumeric, isString, NbtTag, stringifySnbt } from "./nbt";
 import { parseSnbt } from "./snbt";
 import type { InventoryItem } from "./player";
 
@@ -64,6 +64,35 @@ export function itemStackKey(item: InventoryItem): string {
     item.nbt ? stringifySnbt(item.nbt, { typed: true, quoteKeys: true }) : "",
     item.components ? stringifySnbt({ type: "compound", value: item.components }, { typed: true, quoteKeys: true }) : "",
   ].join("|");
+}
+
+export function itemComponentsMatch(
+  actual: Record<string, NbtTag> | undefined,
+  expected: Record<string, NbtTag>,
+): boolean {
+  if (!actual) return Object.keys(expected).length === 0;
+  const matches = (left: NbtTag, right: NbtTag): boolean => {
+    if (isCompound(left) && isCompound(right)) {
+      return Object.entries(right.value).every(
+        ([key, value]) =>
+          left.value[key] !== undefined && matches(left.value[key], value),
+      );
+    }
+    if (isList(left) && isList(right)) {
+      return (
+        left.value.length === right.value.length &&
+        left.value.every((entry, index) => matches(entry, right.value[index]))
+      );
+    }
+    if (isString(left) && isString(right)) return left.value === right.value;
+    if (isNumeric(left) && isNumeric(right)) {
+      return Number(left.value) === Number(right.value);
+    }
+    return false;
+  };
+  return Object.entries(expected).every(
+    ([key, value]) => actual[key] !== undefined && matches(actual[key], value),
+  );
 }
 
 export function itemComponentSummary(item: InventoryItem): string {

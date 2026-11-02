@@ -133,3 +133,35 @@ describe("inventory NBT", () => {
     expect(sim.world.getItemAt(player, "hotbar.0")?.count).toBe(7);
   });
 });
+
+describe("dropping and deleting items", () => {
+  it("drops one item as an entity and deletes the remaining stack", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand("give @s apple 2");
+    const player = sim.world.player()!;
+    expect(sim.world.dropItem(player, "weapon.mainhand", 1).ok).toBe(true);
+    expect(sim.world.getItemAt(player, "weapon.mainhand")?.count).toBe(1);
+    expect(
+      sim.world.entities.some((entity) => entity.type === "minecraft:item"),
+    ).toBe(true);
+    expect(sim.world.deleteItem(player, "weapon.mainhand")).toBe(true);
+    expect(sim.world.getItemAt(player, "weapon.mainhand")).toBeUndefined();
+  });
+});
+
+describe("clear item predicates", () => {
+  it("matches component subsets", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand(
+      'give @s written_book[custom_data={set_color_book:true},item_name={text:"Signed"}] 1',
+    );
+    expect(
+      sim.runCommand(
+        "clear @s written_book[minecraft:custom_data={set_color_book:true}]",
+      ).result,
+    ).toBe(1);
+    expect(sim.world.playerInventory(sim.world.player()!)).toHaveLength(0);
+  });
+});

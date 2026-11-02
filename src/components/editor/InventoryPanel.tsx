@@ -121,7 +121,25 @@ export function InventoryPanel() {
         },
       });
     }
-    entries.push({ separator: true }, {
+    entries.push(
+      { separator: true },
+      {
+        label: "Drop one",
+        onSelect: () => {
+          const result = world.dropItem(player, slot, 1);
+          useWorkbench.getState().showToast(result.message, result.ok ? "success" : "info");
+        },
+      },
+      {
+        label: "Delete stack",
+        danger: true,
+        onSelect: () => {
+          world.deleteItem(player, slot);
+          useWorkbench.getState().showToast(`Deleted ${item.id.replace("minecraft:", "")}`, "info");
+        },
+      },
+      { separator: true },
+      {
       label: "Inspect components",
       disabled: !item.components,
       onSelect: () => setComponentsItem({ slot, item }),

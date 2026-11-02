@@ -35,6 +35,7 @@ import type { PredicateDefinition } from "./predicates";
 import {
   HOTBAR_SIZE,
   MAIN_INVENTORY_SIZE,
+  itemComponentsMatch,
   normalizeItemId,
   resolveSlot,
 } from "./items";
@@ -593,7 +594,8 @@ export class World {
       const matches =
         item.id === id &&
         (nbtKey === undefined || itemNbtKey(item.nbt) === nbtKey) &&
-        (componentKey === undefined || itemComponentKey(item.components) === componentKey);
+        (componentKey === undefined ||
+          (components !== undefined && itemComponentsMatch(item.components, components)));
       if (!matches || budget <= 0) {
         remaining.push(item);
         continue;
@@ -886,6 +888,44 @@ export class World {
     }
 
     return { kind: "info", message: "No simulated right-click behavior for this item" };
+  }
+
+  dropItem(
+    target: EntityData | string | null,
+    slot: string,
+    count = 1,
+  ): { ok: boolean; message: string } {
+    const item = this.getItemAt(target, slot);
+    const player = typeof target === "string"
+      ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
+      : target ?? this.player();
+    if (!item || !player) return { ok: false, message: "That slot is empty" };
+    const amount = Math.max(1, Math.min(item.count, count));
+    if (item.count > amount) {
+      this.setItemAt(player, slot, { ...item, count: item.count - amount });
+    } else {
+      this.setItemAt(player, slot, null);
+    }
+    const stack = Tag.compound({
+      id: Tag.string(item.id),
+      count: Tag.int(amount),
+      ...(item.components && Object.keys(item.components).length > 0
+        ? { components: Tag.compound({ ...item.components }) }
+        : {}),
+    });
+    const entity = createEntity("minecraft:item", entityPos(player), Tag.compound({
+      Item: stack,
+    }));
+    this.addEntity(entity);
+    this.touch();
+    return { ok: true, message: `Dropped ${amount} ${item.id.replace("minecraft:", "")}` };
+  }
+
+  deleteItem(target: EntityData | string | null, slot: string): boolean {
+    const item = this.getItemAt(target, slot);
+    if (!item) return false;
+    this.setItemAt(target, slot, null);
+    return true;
   }
 
   equipItem(target: EntityData | string | null, slot: string): { ok: boolean; message: string } {
