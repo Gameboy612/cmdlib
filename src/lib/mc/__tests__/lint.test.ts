@@ -147,3 +147,23 @@ describe("large project lint budget", () => {
     expect(report.filesLinted).toBeLessThanOrEqual(2_000);
   }, 15_000);
 });
+
+describe("shared pack context", () => {
+  it("resolves functions and predicates from sibling packs", () => {
+    const version = getVersion("26.3");
+    const first = createProject("26.3", "First");
+    const second = createProject("26.3", "Second");
+    first.files[`data/first/${version.functionFolder}/caller.mcfunction`] =
+      "function second:target\n";
+    second.files[`data/second/${version.functionFolder}/target.mcfunction`] =
+      "say ok\n";
+    const isolated = lintProject(first);
+    expect(
+      isolated.diagnostics.some((entry) => entry.code === "unknown-function"),
+    ).toBe(true);
+    const shared = lintProject(first, { contextSources: [second.files] });
+    expect(
+      shared.diagnostics.some((entry) => entry.code === "unknown-function"),
+    ).toBe(false);
+  });
+});

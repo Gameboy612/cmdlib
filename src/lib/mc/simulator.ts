@@ -98,12 +98,30 @@ export class Simulator implements Runtime {
     this.touch();
   }
 
+  /** Other packs in the same project whose functions, tags and predicates are visible. */
+  contextProjects: Project[] = [];
+
   /** Re-read functions, tags and predicates without destroying world state. */
   syncFunctions(): void {
-    const parsed = parseDatapack(this.project.files, this.version);
-    this.world.setFunctions(parsed.functions);
-    this.world.setFunctionTags(parsed.tags);
-    this.world.setPredicates(parsePredicateFiles(this.project.files).predicates);
+    const functions = new Map<string, ReturnType<typeof parseDatapack>["functions"][number]>();
+    const tags = new Map<string, ReturnType<typeof parseDatapack>["tags"][number]>();
+    const predicates = new Map<string, ReturnType<typeof parsePredicateFiles>["predicates"] extends Map<string, infer T> ? T : never>();
+    const sources = [
+      this.project,
+      ...this.contextProjects.filter((pack) => pack.id !== this.project.id),
+    ];
+    for (const source of sources) {
+      const version = getVersion(source.versionId);
+      const parsed = parseDatapack(source.files, version);
+      for (const fn of parsed.functions) functions.set(fn.id, fn);
+      for (const tag of parsed.tags) tags.set(tag.id, tag);
+      for (const [id, predicate] of parsePredicateFiles(source.files).predicates) {
+        predicates.set(id, predicate);
+      }
+    }
+    this.world.setFunctions([...functions.values()]);
+    this.world.setFunctionTags([...tags.values()]);
+    this.world.setPredicates(predicates);
   }
 
   /** Build a new world, load the pack, and run its load tags. */

@@ -120,6 +120,10 @@ let logId = 0;
 export class World {
   readonly version: VersionProfile;
   tick = 0;
+  /** Tick rate in ticks per second (Minecraft's /tick rate). */
+  tickRate = 20;
+  /** When true, the timeline's automatic tick loop is frozen. */
+  tickFrozen = false;
   entities: EntityData[] = [];
   /**
    * Simulated player state, keyed by score-holder name (username for players).

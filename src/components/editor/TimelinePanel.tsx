@@ -6,7 +6,6 @@ import type { ScheduledFunction } from "@/lib/mc/world";
 import styles from "./timeline.module.css";
 
 const SPEEDS = [0.5, 1, 2, 4] as const;
-const BASE_TPS = 20;
 
 interface QueueRow {
   functionId: string;
@@ -27,6 +26,8 @@ export function TimelinePanel() {
   const revision = useSimRevision();
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<number>(1);
+  const frozen = sim.world.tickFrozen;
+  const tickRate = sim.world.tickRate;
 
   // A new simulator means a new world: stop the old loop and do not carry the
   // playing state across a reset.
@@ -35,14 +36,19 @@ export function TimelinePanel() {
   }, [sim]);
 
   useEffect(() => {
-    if (!playing) return;
-    const interval = Math.max(1, 1000 / (BASE_TPS * speed));
+    if (!playing || frozen) return;
+    const interval = Math.max(1, 1000 / (tickRate * speed));
     const timer = window.setInterval(() => {
       sim.tick();
     }, interval);
     return () => window.clearInterval(timer);
     // `sim` is a dependency so a reset/version switch rebuilds the interval.
-  }, [playing, speed, sim]);
+  }, [playing, speed, sim, frozen, tickRate]);
+
+  const setFrozen = (next: boolean) => {
+    sim.world.tickFrozen = next;
+    sim.world.touch();
+  };
 
   const queues = useMemo<QueueRow[]>(() => {
     void revision;
@@ -78,9 +84,9 @@ export function TimelinePanel() {
     <div className={styles.panel} aria-label="Timeline">
       <div className={styles.bar}>
         <span className={styles.title}>Timeline</span>
-        <span className={`${styles.status} ${playing ? styles.statusOn : ""}`}>
+        <span className={`${styles.status} ${playing && !frozen ? styles.statusOn : ""} ${frozen ? styles.statusFrozen : ""}`}>
           <i className={styles.dot} aria-hidden />
-          {playing ? "playing" : "paused"}
+          {frozen ? "frozen" : playing ? "playing" : "paused"}
         </span>
       </div>
 
@@ -88,12 +94,19 @@ export function TimelinePanel() {
         <button
           type="button"
           className={`${styles.button} ${styles.play}`}
-          onClick={() => setPlaying((value) => !value)}
-          aria-pressed={playing}
-          title={playing ? "Pause the tick loop" : "Start the tick loop"}
+          onClick={() => {
+            if (frozen) {
+              setFrozen(false);
+              setPlaying(true);
+            } else {
+              setPlaying((value) => !value);
+            }
+          }}
+          aria-pressed={playing && !frozen}
+          title={playing && !frozen ? "Pause the tick loop" : "Start the tick loop"}
         >
-          <span aria-hidden>{playing ? "❚❚" : "▶"}</span>
-          {playing ? "pause" : "play"}
+          <span aria-hidden>{playing && !frozen ? "❚❚" : "▶"}</span>
+          {playing && !frozen ? "pause" : "play"}
         </button>
         <button
           type="button"
@@ -104,6 +117,33 @@ export function TimelinePanel() {
           <span aria-hidden>▸|</span>
           step
         </button>
+        <button
+          type="button"
+          className={`${styles.button} ${frozen ? styles.freezeOn : ""}`}
+          onClick={() => setFrozen(!frozen)}
+          aria-pressed={frozen}
+          title={frozen ? "Unfreeze the simulation" : "Freeze the simulation"}
+        >
+          <span aria-hidden>{frozen ? "❄" : "❄"}</span>
+          {frozen ? "unfreeze" : "freeze"}
+        </button>
+        <label className={styles.speed}>
+          <span>rate</span>
+          <input
+            type="number"
+            min={1}
+            max={10000}
+            step={1}
+            value={tickRate}
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              if (!Number.isFinite(next) || next < 1 || next > 10000) return;
+              sim.world.tickRate = next;
+              sim.world.touch();
+            }}
+            aria-label="Tick rate"
+          />
+        </label>
         <label className={styles.speed}>
           <span>speed</span>
           <select
@@ -113,7 +153,7 @@ export function TimelinePanel() {
           >
             {SPEEDS.map((value) => (
               <option key={value} value={value}>
-                {value}× · {Math.round(BASE_TPS * value)} tps
+                {value}× · {Math.round(tickRate * value)} tps
               </option>
             ))}
           </select>
@@ -182,7 +222,7 @@ export function TimelinePanel() {
             ? "no functions"
             : `${tickTagCount} function${tickTagCount === 1 ? "" : "s"}`}
         </span>
-        <span className={styles.footRight}>{BASE_TPS} tps base</span>
+        <span className={styles.footRight}>{tickRate} tps base</span>
       </div>
     </div>
   );

@@ -18,6 +18,8 @@ export interface Runtime {
     args: Record<string, NbtTag> | null,
     ctx: CommandContext,
   ): CommandResult;
+  /** Advance the simulation by one tick (used by /tick step and sprint). */
+  tick(): void;
 }
 
 export interface CommandContext {

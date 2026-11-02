@@ -582,3 +582,42 @@ describe("tellraw targeting", () => {
     ).toBe(false);
   });
 });
+
+describe("shared pack context", () => {
+  it("calls a function provided by a sibling pack", () => {
+    const version = getVersion("26.3");
+    const first = createDemoProject("26.3");
+    const second = createDemoProject("26.3");
+    second.id = "pack-second";
+    first.files[`data/first/${version.functionFolder}/caller.mcfunction`] =
+      "function second:shared\n";
+    second.files[`data/second/${version.functionFolder}/shared.mcfunction`] =
+      "say SHARED-CONTEXT\n";
+    const sim = new Simulator({ project: first });
+    sim.contextProjects = [second];
+    sim.reset();
+    const outcome = sim.runCommand("function first:caller");
+    expect(outcome.ok).toBe(true);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("SHARED-CONTEXT")),
+    ).toBe(true);
+  });
+});
+
+describe("/random", () => {
+  it("returns values in range and accepts sequences", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    expect(sim.runCommand("random value 1..1").result).toBe(1);
+    for (let i = 0; i < 20; i++) {
+      const outcome = sim.runCommand("random value 1..6");
+      expect(outcome.ok).toBe(true);
+      expect(outcome.result).toBeGreaterThanOrEqual(1);
+      expect(outcome.result).toBeLessThanOrEqual(6);
+    }
+    expect(sim.runCommand("random value 1..6 my_sequence").ok).toBe(true);
+    expect(sim.runCommand("random reset my_sequence").ok).toBe(true);
+    expect(sim.runCommand("random roll 2..2").result).toBe(2);
+  });
+});

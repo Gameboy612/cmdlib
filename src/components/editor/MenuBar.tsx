@@ -40,6 +40,7 @@ export function MenuBar() {
   const importZip = useWorkbench((state) => state.importZip);
   const exportZip = useWorkbench((state) => state.exportZip);
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
+  const setSearchOpen = useWorkbench((state) => state.setSearchOpen);
   const requestPanel = useWorkbench((state) => state.requestPanel);
   const openPanels = useWorkbench((state) => state.openPanels);
   const resetLayout = useWorkbench((state) => state.resetLayout);
@@ -118,6 +119,7 @@ export function MenuBar() {
         { label: "Redo", hint: "Ctrl Shift Z", run: () => dispatchEditorCommand("redo") },
         { separator: true },
         { label: "Find", hint: "Ctrl F", run: () => dispatchEditorCommand("find") },
+        { label: "Find in files…", hint: "Ctrl Shift F", run: () => setSearchOpen(true) },
         { label: "Command palette", hint: "Ctrl K", run: () => setPaletteOpen(true) },
       ],
     },

@@ -292,3 +292,19 @@ describe("Simulator.tick", () => {
     expect(sim.world.getScore("Dev", "ticks")).toBe(0);
   });
 });
+
+describe("/tick controls", () => {
+  it("freezes, unfreezes, changes rate and steps", () => {
+    const sim = new Simulator({ project: pack() });
+    sim.reset();
+    expect(sim.runCommand("tick freeze").success).toBe(true);
+    expect(sim.world.tickFrozen).toBe(true);
+    expect(sim.runCommand("tick unfreeze").success).toBe(true);
+    expect(sim.world.tickFrozen).toBe(false);
+    expect(sim.runCommand("tick rate 5").success).toBe(true);
+    expect(sim.world.tickRate).toBe(5);
+    const before = sim.world.tick;
+    expect(sim.runCommand("tick step 2").result).toBe(2);
+    expect(sim.world.tick).toBe(before + 2);
+  });
+});

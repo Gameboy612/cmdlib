@@ -17,6 +17,7 @@ import {
   killHandler,
   meHandler,
   reloadHandler,
+  randomHandler,
   returnHandler,
   sayHandler,
   setblockHandler,
@@ -24,6 +25,7 @@ import {
   tagHandler,
   teleportHandler,
   tellrawHandler,
+  tickHandler,
 } from "./core";
 import type { CommandContext, CommandResult } from "./context";
 import type { Cursor } from "../cursor";
@@ -36,6 +38,7 @@ export const HANDLERS: Record<string, CommandHandler> = {
   title: titleHandler,
   function: functionHandler,
   forceload: forceloadHandler,
+  tick: tickHandler,
   data: dataHandler,
   summon: summonHandler,
   kill: killHandler,
@@ -46,6 +49,7 @@ export const HANDLERS: Record<string, CommandHandler> = {
   tellraw: tellrawHandler,
   me: meHandler,
   return: returnHandler,
+  random: randomHandler,
   setblock: setblockHandler,
   reload: reloadHandler,
   schedule: scheduleHandler,

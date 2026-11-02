@@ -15,7 +15,8 @@ const WORKBENCH = [
   ["Projects", "Group several packs into one workspace, switch packs, import projects and export the whole project."],
   ["World preview", "Inspect entities, positions, NBT, effects and inventories. Right-drag to rotate, scroll to zoom."],
   ["Console", "Tab completion, history and log-level filters for errors, warnings, chat, data, commands and system messages."],
-  ["Timeline", "Play, pause, step and change tick speed. Load tags, tick tags and scheduled functions are simulated."],
+  ["Timeline", "Play, pause, freeze, step, change tick rate and speed. Load tags, tick tags and scheduled functions are simulated."],
+  ["Search all", "Ctrl/Cmd + Shift + F searches every file with regex and case options, plus replace all. Ctrl/Cmd + P opens the file palette."],
 ];
 
 const PACKS = [
@@ -49,6 +50,8 @@ const COMMANDS = [
   ["/effect", "Give and clear effects on any entity."],
   ["/spectate", "Make a player spectate an entity."],
   ["/trigger", "Bare add-one, add <value> and set <value>, with enabled-trigger completion."],
+  ["/random", "value, roll and reset with integer ranges and optional sequences."],
+  ["/tick", "freeze, unfreeze, rate, step, sprint and query, integrated with the timeline."],
 ];
 
 const EXECUTE = [
@@ -81,7 +84,7 @@ const TOOLS = [
 const NOT_SIMULATED = [
   "datapack", "help", "time", "weather", "gamerule", "fill", "clone",
   "particle", "playsound", "bossbar", "xp", "advancement", "attribute",
-  "item", "loot", "random", "compute", "posteffect", "dialog", "version",
+  "item", "loot", "compute", "posteffect", "dialog", "version",
   "list", "seed",
 ];
 
@@ -127,9 +130,9 @@ export default function FeaturesPage() {
           </p>
           <div className={styles.heroMeta}>
             <span><b>Versions</b> 1.13 – 26.3</span>
-            <span><b>Runtime commands</b> 23</span>
+            <span><b>Runtime commands</b> 24</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 149 passing</span>
+            <span><b>Tests</b> 154 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

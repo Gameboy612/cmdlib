@@ -7,6 +7,7 @@ import { useMediaQuery } from "@/lib/hooks/useMedia";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
+import { SearchPanel } from "./SearchPanel";
 import { Preferences } from "./Preferences";
 import { usePreferences } from "@/lib/state/preferences";
 import { matchesBinding } from "@/lib/keybindings";
@@ -32,6 +33,7 @@ export function EditorShell() {
   const hydrated = useWorkbench((state) => state.hydrated);
   const layoutNonce = useWorkbench((state) => state.layoutNonce);
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
+  const setSearchOpen = useWorkbench((state) => state.setSearchOpen);
   const runLoad = useWorkbench((state) => state.runLoad);
   const runActive = useWorkbench((state) => state.runActive);
   const showToast = useWorkbench((state) => state.showToast);
@@ -55,7 +57,15 @@ export function EditorShell() {
         target?.tagName === "INPUT" ||
         target?.tagName === "TEXTAREA" ||
         target?.tagName === "SELECT";
-      if (matchesBinding(event, keybindings.reload)) {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        event.stopPropagation();
+        setSearchOpen(true);
+      } else if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        event.stopPropagation();
+        setPaletteOpen(true);
+      } else if (matchesBinding(event, keybindings.reload)) {
         event.preventDefault();
         event.stopPropagation();
         runLoad();
@@ -85,6 +95,7 @@ export function EditorShell() {
     runLoad,
     setPaletteOpen,
     setPreferencesOpen,
+    setSearchOpen,
     showToast,
   ]);
 
@@ -98,6 +109,7 @@ export function EditorShell() {
       </main>
       <StatusBar />
       <CommandPalette />
+      <SearchPanel />
       <Preferences open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
       <ToastHost />
     </div>

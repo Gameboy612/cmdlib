@@ -497,30 +497,41 @@
 .packList {
   flex: none;
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 3px;
-  padding: 5px;
   overflow-x: auto;
+  overflow-y: hidden;
+  padding: 5px;
   border-bottom: 1px solid #1e242b;
   background: #0b0f13;
+  scrollbar-width: thin;
+  scrollbar-color: #2b333c transparent;
 }
+.packList::-webkit-scrollbar { height: 5px; }
+.packList::-webkit-scrollbar-thumb { background: #2b333c; border-radius: 5px; }
+.packList::-webkit-scrollbar-track { background: transparent; }
 .packRow {
+  width: auto;
+  flex: none;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 6px;
+  padding: 5px 6px;
   border: 1px solid #20272e;
   border-radius: 4px;
   color: var(--faint);
   font-family: var(--mono);
   font-size: 8px;
   white-space: nowrap;
+  text-align: left;
 }
 .packRow:hover { color: var(--text-dim); border-color: #313941; }
 .packRowActive { color: var(--accent-soft); border-color: rgba(255, 122, 69, 0.4); background: rgba(255, 122, 69, 0.07); }
 .packDot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; flex: none; }
-.packName { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-.packVersion { font-size: 6.5px; color: var(--faint); }
+.packName { flex: none; min-width: 0; max-width: none; white-space: nowrap; }
+.packVersion { flex: none; margin-left: auto; font-size: 6.5px; color: var(--faint); }
 .tree { flex: 1; min-height: 0; overflow: auto; padding: 4px 0; font-family: var(--mono); font-size: 9.5px; }
 .treeFolder, .treeRow {
   height: 23px;
@@ -532,7 +543,14 @@
   cursor: pointer;
   user-select: none;
 }
-.treeFolder:hover, .treeRow:hover { background: rgba(255, 255, 255, 0.045); color: var(--text-dim); }
+.treeFolder {
+  position: sticky;
+  z-index: 3;
+  background: #0b0f13;
+  border-bottom: 1px solid rgba(233, 229, 220, 0.045);
+}
+.treeFolder:hover { background: #11161b; color: var(--text-dim); }
+.treeRow:hover { background: rgba(255, 255, 255, 0.045); color: var(--text-dim); }
 .treeRowActive { background: rgba(255, 122, 69, 0.1); color: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
 .treeRowUnused .fileIcon { color: var(--warn); }
 .treeWarn { margin-left: auto; color: var(--warn); font-size: 8px; padding-right: 4px; }

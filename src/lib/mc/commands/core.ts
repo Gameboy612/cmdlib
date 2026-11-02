@@ -366,3 +366,98 @@ export const forceloadHandler: Handler = (cursor, ctx) => {
   feedback(ctx, "success", `forceload ${action}: chunks marked ${action === "add" ? "loaded" : action === "remove" ? "unloaded" : "queried"}`);
   return { result: 1, success: true };
 };
+
+
+export const tickHandler: Handler = (cursor, ctx) => {
+  const action = cursor.readWord();
+  switch (action) {
+    case "freeze": {
+      ctx.world.tickFrozen = true;
+      ctx.world.touch();
+      feedback(ctx, "success", "Tick loop frozen");
+      return { result: 1, success: true };
+    }
+    case "unfreeze": {
+      ctx.world.tickFrozen = false;
+      ctx.world.touch();
+      feedback(ctx, "success", "Tick loop unfrozen");
+      return { result: 1, success: true };
+    }
+    case "rate": {
+      const start = cursor.mark();
+      const rate = cursor.readNumber().value;
+      if (!Number.isFinite(rate) || rate < 1 || rate > 10000) {
+        cursor.error("Tick rate must be between 1 and 10000", start, "tick-rate");
+      }
+      ctx.world.tickRate = rate;
+      ctx.world.touch();
+      feedback(ctx, "success", `Tick rate set to ${rate} tps`);
+      return { result: 1, success: true };
+    }
+    case "step":
+    case "sprint": {
+      let count = 1;
+      if (!cursor.done()) count = cursor.readInt().value;
+      if (count < 1 || count > 10000) {
+        cursor.error("Tick count must be between 1 and 10000", cursor.mark(), "tick-count");
+      }
+      for (let i = 0; i < count; i++) ctx.runtime.tick();
+      feedback(ctx, "success", `${action === "step" ? "Stepped" : "Sprinted"} ${count} tick${count === 1 ? "" : "s"}`);
+      return { result: count, success: true };
+    }
+    case "query": {
+      print(
+        ctx,
+        "info",
+        `tick ${ctx.world.tick} · ${ctx.world.tickRate} tps · ${ctx.world.tickFrozen ? "frozen" : "running"}`,
+      );
+      return { result: 1, success: true };
+    }
+    default:
+      cursor.error("Expected freeze, unfreeze, rate, step, sprint or query", cursor.mark(), "tick-action");
+      return { result: 0, success: false };
+  }
+};
+
+
+export const randomHandler: Handler = (cursor, ctx) => {
+  const action = cursor.readWord();
+  if (action === "reset") {
+    const sequence = cursor.readWord();
+    if (!sequence) cursor.error("Expected a sequence name", cursor.mark());
+    return { result: 1, success: true };
+  }
+  if (action !== "value" && action !== "roll") {
+    cursor.error("Expected value, roll or reset", cursor.mark() - action.length, "random-action");
+    return { result: 0, success: false };
+  }
+  const rangeStart = cursor.mark();
+  const rangeText = cursor.readWord();
+  const parts = rangeText.split("..");
+  const min = Number(parts[0]);
+  const max = parts.length > 1 ? Number(parts[1]) : min;
+  if (
+    parts.length > 2 ||
+    !Number.isFinite(min) ||
+    !Number.isFinite(max) ||
+    !Number.isInteger(min) ||
+    !Number.isInteger(max) ||
+    min > max
+  ) {
+    cursor.error(
+      `Expected an integer range like 1..6 or 4, got '${rangeText}'`,
+      rangeStart,
+      "random-range",
+    );
+  }
+  // An optional sequence name is accepted; the simulator uses the world RNG
+  // rather than maintaining per-sequence deterministic state.
+  if (!cursor.done()) cursor.readWord();
+  const value = Math.floor(Math.random() * (max - min + 1)) + min;
+  if (action === "roll") {
+    feedback(ctx, "success", `Rolled ${value}`);
+  } else {
+    feedback(ctx, "success", `${value}`);
+  }
+  return { result: value, success: true };
+};

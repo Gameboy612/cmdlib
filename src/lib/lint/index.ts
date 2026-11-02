@@ -79,12 +79,17 @@ export interface LintOptions {
    * loads all packs together, so an objective may be declared in another pack.
    */
   objectiveSources?: Record<string, string>[];
+  /** Other packs in the same workspace whose functions, tags and predicates are visible. */
+  contextSources?: Record<string, string>[];
 }
 
 const lintRuntime: Runtime = {
   world: null as unknown as World,
   runFunction() {
     return { result: 1, success: true };
+  },
+  tick() {
+    // Linting never advances the world.
   },
 };
 
@@ -139,10 +144,23 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
   lintPackMeta(project, version, report);
 
   const world = new World({ version, seedPlayer: true, playerName: "Dev" });
-  world.setFunctions(parsed.functions);
-  world.setFunctionTags(parsed.tags);
+  const contextSources = options.contextSources ?? options.objectiveSources ?? [];
+  const sharedFunctions = new Map(parsed.functions.map((fn) => [fn.id, fn]));
+  const sharedTags = new Map(parsed.tags.map((tag) => [tag.id, tag]));
   const parsedPredicates = parsePredicateFiles(project.files);
-  world.setPredicates(parsedPredicates.predicates);
+  const sharedPredicates = new Map(parsedPredicates.predicates);
+  for (const source of contextSources) {
+    const sibling = parseDatapack(source, version);
+    for (const fn of sibling.functions) sharedFunctions.set(fn.id, fn);
+    for (const tag of sibling.tags) sharedTags.set(tag.id, tag);
+    const siblingPredicates = parsePredicateFiles(source);
+    for (const predicate of siblingPredicates.predicates.values()) {
+      sharedPredicates.set(predicate.id, predicate);
+    }
+  }
+  world.setFunctions([...sharedFunctions.values()]);
+  world.setFunctionTags([...sharedTags.values()]);
+  world.setPredicates(sharedPredicates);
   for (const error of parsedPredicates.errors) {
     reportPredicateFileIssue(project, error.path, error.message, error.code, "error", report);
   }
@@ -150,7 +168,7 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
   lintRuntime.world = world;
 
   const declaredObjectives = new Map<string, { criterion: string; displayName?: string }>();
-  const declarationSources = [project.files, ...(options.objectiveSources ?? [])];
+  const declarationSources = [project.files, ...contextSources];
   for (const source of declarationSources) {
     for (const content of Object.values(source)) {
       const regex = /scoreboard[ \t]+objectives[ \t]+add[ \t]+(\S+)[ \t]+(\S+)(?:[ \t]+([^\r\n]+))?/g;

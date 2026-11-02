@@ -52,6 +52,7 @@ interface WorkbenchState {
   booting: boolean;
   toast: Toast | null;
   paletteOpen: boolean;
+  searchOpen: boolean;
   mobilePanel: MobilePanel;
   layoutJson: string | null;
   layoutNonce: number;
@@ -98,6 +99,13 @@ interface WorkbenchState {
   resetLayout: () => void;
   showToast: (message: string, kind?: Toast["kind"]) => void;
   setPaletteOpen: (open: boolean) => void;
+  setSearchOpen: (open: boolean) => void;
+  replaceAllInFiles: (
+    query: string,
+    replacement: string,
+    useRegex: boolean,
+    caseSensitive: boolean,
+  ) => { matches: number; files: number; error?: string };
   setMobilePanel: (panel: MobilePanel) => void;
   setCursor: (line: number, column: number) => void;
   goTo: (path: string, line: number, column?: number) => void;
@@ -244,7 +252,10 @@ function lintActivePack(
       .filter((pack) => pack.id !== project.id)
       .map((pack) => pack.files) ?? [];
   try {
-    return lintProject(project, { objectiveSources });
+    return lintProject(project, {
+      objectiveSources,
+      contextSources: objectiveSources,
+    });
   } catch (error) {
     const path =
       project.activePath ||
@@ -317,6 +328,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   booting: true,
   toast: null,
   paletteOpen: false,
+  searchOpen: false,
   mobilePanel: "editor",
   layoutJson: null,
   layoutNonce: 0,
@@ -337,6 +349,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       projects.find((entry) => entry.id === activeProjectId) ?? projects[0];
     const project = activePackOf(workspace);
     const sim = new Simulator({ project });
+    sim.contextProjects = workspace.packs.filter((pack) => pack.id !== project.id);
     sim.reset();
     const layoutJson =
       typeof window !== "undefined" ? window.localStorage.getItem(LAYOUT_KEY) : null;
@@ -654,6 +667,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     const sim = get().sim;
     sim.project = pack;
     sim.version = getVersion(pack.versionId);
+    sim.contextProjects = nextWorkspace.packs.filter((entry) => entry.id !== pack.id);
     sim.setProject(pack);
     sim.reset();
     set({
@@ -937,6 +951,43 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   },
 
   setPaletteOpen: (open) => set({ paletteOpen: open }),
+  setSearchOpen: (open) => set({ searchOpen: open }),
+  replaceAllInFiles: (query, replacement, useRegex, caseSensitive) => {
+    if (!query) return { matches: 0, files: 0 };
+    const flags = `g${caseSensitive ? "" : "i"}m`;
+    let regex: RegExp;
+    try {
+      regex = new RegExp(useRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), flags);
+    } catch {
+      return { matches: 0, files: 0, error: "Invalid regular expression" };
+    }
+    const project = get().project;
+    const files = { ...project.files };
+    let matches = 0;
+    let changed = 0;
+    for (const [path, content] of Object.entries(project.files)) {
+      regex.lastIndex = 0;
+      const found = content.match(regex);
+      if (!found || found.length === 0) continue;
+      regex.lastIndex = 0;
+      const next = useRegex
+        ? content.replace(regex, replacement)
+        : content.replace(regex, () => replacement);
+      if (next === content) continue;
+      matches += found.length;
+      changed++;
+      files[path] = next;
+    }
+    if (changed === 0) return { matches: 0, files: 0 };
+    const nextProject: Project = { ...project, files, updatedAt: Date.now() };
+    const activeProjectId = get().activeProjectId;
+    const projects = syncPackIntoProjects(get().projects, activeProjectId, nextProject);
+    get().sim.setProject(nextProject);
+    set({ project: nextProject, projects });
+    persistWorkspaces(projects, activeProjectId);
+    scheduleLint(get);
+    return { matches, files: changed };
+  },
   setMobilePanel: (panel) => set({ mobilePanel: panel }),
   setCursor: (line, column) => set({ cursor: { line, column } }),
   goTo: (path, line, column = 1) => {

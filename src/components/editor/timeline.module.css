@@ -43,6 +43,14 @@
 .statusOn {
   color: var(--ok);
 }
+.statusFrozen {
+  color: #8fc7e8;
+}
+.freezeOn {
+  color: #8fc7e8;
+  border-color: rgba(143, 199, 232, 0.4);
+  background: rgba(143, 199, 232, 0.08);
+}
 
 .dot {
   width: 5px;
@@ -133,6 +141,18 @@
   color: var(--faint);
 }
 
+.speed input {
+  width: 44px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  color: var(--patina);
+  text-align: right;
+}
+.speed input::-webkit-outer-spin-button,
+.speed input::-webkit-inner-spin-button { opacity: 0.4; }
 .speed select {
   appearance: none;
   background: transparent;

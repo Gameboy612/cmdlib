@@ -190,6 +190,18 @@ function commandArgumentCompletion(
       return summonCompletion(arg, words, index);
     case "tag":
       return tagCompletion(arg, current, index);
+    case "random":
+      if (arg === 0) {
+        return [
+          keyword("value", "Draw a value without announcing it."),
+          keyword("roll", "Draw a value and announce it."),
+          keyword("reset", "Reset a named random sequence."),
+        ];
+      }
+      if (arg === 1 && (words[1] === "value" || words[1] === "roll")) {
+        return [snippetOption("range", "${1:1}..${2:6}", "Integer range.", "range")];
+      }
+      return null;
     case "trigger":
       if (arg === 0) {
         return index.enabledTriggers.map((name) => ({

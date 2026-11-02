@@ -64,11 +64,20 @@ export function WorldView({
     entity: EntityData | null;
   } | null>(null);
   const positions = useRef(new Map<string, { x: number; y: number; entity: EntityData }>());
+  const chatRef = useRef<HTMLDivElement | null>(null);
+  const chatStick = useRef(true);
 
   const textContext = useMemo(
     () => world.textContext(world.player() ?? null),
     [world, revision],
   );
+
+  useEffect(() => {
+    const element = chatRef.current;
+    if (element && chatStick.current) {
+      element.scrollTop = element.scrollHeight;
+    }
+  }, [revision, world.logs.length]);
 
   useEffect(() => {
     const element = wrapRef.current;
@@ -544,10 +553,20 @@ export function WorldView({
             </div>
           )}
 
-          <div className={styles.chat}>
+          <div
+            className={styles.chat}
+            ref={chatRef}
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              chatStick.current =
+                element.scrollHeight - element.scrollTop - element.clientHeight < 12;
+            }}
+            onWheel={(event) => event.stopPropagation()}
+            aria-label="Chat history"
+          >
             {world.logs
               .filter((entry) => entry.kind === "chat")
-              .slice(-3)
+              .slice(-80)
               .map((entry) => (
                 <div key={entry.id} className={styles.chatLine}>
                   <ComponentText tag={entry.component ?? { type: "string", value: entry.text }} ctx={componentContext} />

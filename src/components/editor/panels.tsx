@@ -186,6 +186,14 @@ export function ExplorerPanel() {
     });
   }, [explorerCreate, activeNamespace, version.functionFolder]);
 
+  const draftFocusKey = draft
+    ? draft.mode === "create"
+      ? `create:${draft.kind}:${draft.folder ?? ""}`
+      : draft.mode === "rename"
+        ? `rename:${draft.path}`
+        : `delete:${draft.path}`
+    : "";
+
   useEffect(() => {
     if (!draft || draft.mode === "delete") return;
     const frame = requestAnimationFrame(() => {
@@ -193,7 +201,10 @@ export function ExplorerPanel() {
       draftInput.current?.select();
     });
     return () => cancelAnimationFrame(frame);
-  }, [draft]);
+    // Focus/select only when a draft opens or changes target, not on every
+    // keystroke. Depending on the whole draft object selected the entire
+    // filename after each character.
+  }, [draftFocusKey]);
 
   const beginCreate = (
     kind: "file" | "function" | "tag" | "predicate",
@@ -571,7 +582,7 @@ export function ExplorerPanel() {
         {node.name && (
           <div
             className={`${styles.treeFolder} ${dropTarget === node.path ? styles.treeDrop : ""}`}
-            style={{ paddingLeft: 8 + depth * 13 }}
+            style={{ paddingLeft: 8 + depth * 13, top: depth * 23 }}
             onClick={() => toggle(node.path)}
             onDragOver={(event) => {
               if (!dragPath) return;
@@ -909,6 +920,8 @@ export function ConsolePanel() {
   );
   const [value, setValue] = useState("");
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const historyDraft = useRef("");
+  const stickToBottom = useRef(true);
   const [suggestions, setSuggestions] = useState<{
     from: number;
     options: Completion[];
@@ -919,7 +932,9 @@ export function ConsolePanel() {
 
   useEffect(() => {
     const element = scrollRef.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    if (element && stickToBottom.current) {
+      element.scrollTop = element.scrollHeight;
+    }
   }, [revision, world.logs.length]);
 
   const updateSuggestions = (next: string, caret: number) => {
@@ -960,13 +975,33 @@ export function ConsolePanel() {
     runCommand(command);
     setValue("");
     setHistoryIndex(-1);
+    historyDraft.current = "";
   };
 
   const history = (direction: number) => {
     if (recent.length === 0) return;
-    const next = Math.max(0, Math.min(recent.length - 1, historyIndex + direction));
-    setHistoryIndex(next);
-    setValue(recent[next] ?? "");
+    if (direction < 0) {
+      // Up: -1 (current draft) → newest → older.
+      if (historyIndex === -1) {
+        historyDraft.current = value;
+        setHistoryIndex(0);
+        setValue(recent[0] ?? "");
+      } else {
+        const next = Math.min(recent.length - 1, historyIndex + 1);
+        setHistoryIndex(next);
+        setValue(recent[next] ?? "");
+      }
+    } else if (historyIndex !== -1) {
+      // Down: older → newer → back to the draft that was being typed.
+      if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setValue(historyDraft.current);
+      } else {
+        const next = historyIndex - 1;
+        setHistoryIndex(next);
+        setValue(recent[next] ?? "");
+      }
+    }
     setSuggestions(null);
   };
 
@@ -1026,7 +1061,16 @@ export function ConsolePanel() {
             );
           })}
         </div>
-        <div className={styles.consoleOut} ref={scrollRef}>
+        <div
+          className={styles.consoleOut}
+          ref={scrollRef}
+          aria-label="Console output"
+          onScroll={(event) => {
+            const element = event.currentTarget;
+            stickToBottom.current =
+              element.scrollHeight - element.scrollTop - element.clientHeight < 24;
+          }}
+        >
           {logs.length === 0 && (
             <div className={styles.consoleWelcome}>
               <span>cmdlib console · {sim.version.id}</span>

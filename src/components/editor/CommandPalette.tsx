@@ -32,6 +32,7 @@ export function CommandPalette() {
     const base: Action[] = [
       { id: "run-load", label: "Run /reload", hint: formatBinding(keybindings.reload), group: "Runtime", keywords: "reload reset boot load tags", run: state.runLoad },
       { id: "run-file", label: "Run the active function", hint: formatBinding(keybindings.runActive), group: "Runtime", keywords: "execute", run: state.runActive },
+      { id: "search-all", label: "Search all files", hint: "Ctrl Shift F", group: "Tools", keywords: "find replace regex project", run: () => state.setSearchOpen(true) },
       { id: "export", label: "Export pack as .zip", group: "Pack", keywords: "download save", run: state.exportZip },
       { id: "new-pack", label: "Add another pack", group: "Pack", keywords: "create datapack", run: () => state.addPack() },
       { id: "projects", label: "Open projects", group: "Pack", keywords: "workspace switch", run: () => window.open(asset("/projects/"), "_self") },
