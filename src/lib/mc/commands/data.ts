@@ -231,17 +231,24 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
           end = null;
         }
       }
-      if (matches.length !== 1 || !isString(matches[0].value)) {
+      const sourceTag = matches.length === 1 ? matches[0].value : null;
+      if (
+        !sourceTag ||
+        (!isString(sourceTag) && !isNumericTag(sourceTag))
+      ) {
         if (!ctx.lint) {
           throw new CommandError(
-            `The source path must match exactly one string tag`,
+            `The source path must match exactly one string or numeric tag`,
             fromPathStart,
             "path-type",
           );
         }
         value = Tag.string("");
       } else {
-        const raw = matches[0].value.value;
+        // Vanilla converts numeric tags to their SNBT form before slicing.
+        const raw = isString(sourceTag)
+          ? sourceTag.value
+          : stringifySnbt(sourceTag);
         const at = (index: number) =>
           index < 0
             ? Math.max(0, raw.length + index)

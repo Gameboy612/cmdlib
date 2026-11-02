@@ -454,3 +454,25 @@ describe("scoreboard objective removal", () => {
     expect(sim.world.objectives.has("still_here")).toBe(true);
   });
 });
+
+describe("data modify string from numeric tags", () => {
+  it("converts numeric tags before slicing", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("data modify storage test:str value set value -2.0f");
+    sim.runCommand(
+      "data modify storage test:str first set string storage test:str value 0 1",
+    );
+    sim.runCommand(
+      "data modify storage test:str last set string storage test:str value -1",
+    );
+    expect(
+      sim.world.storage("test:str")?.value.first.type === "string"
+        ? sim.world.storage("test:str")!.value.first.value
+        : null,
+    ).toBe("-");
+    const last = sim.world.storage("test:str")?.value.last;
+    expect(last).toEqual(Tag.string("f"));
+  });
+});
