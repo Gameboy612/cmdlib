@@ -165,6 +165,9 @@ function merge(cursor: Cursor, ctx: CommandContext): CommandResult {
   }
   try {
     mergeCompound(source.root, nbt);
+    if (source.kind === "entity" && source.entity) {
+      ctx.world.importInventoryNbt(source.entity);
+    }
   } catch (error) {
     throw new CommandError(String((error as Error).message), cursor.mark(), "merge");
   }
@@ -304,6 +307,14 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
 
   try {
     applyPathModify(source.root, path, mode as "set" | "merge" | "append" | "prepend" | "insert" | "remove", value, insertIndex);
+    if (source.kind === "entity" && source.entity) {
+      ctx.world.importInventoryNbt(
+        source.entity,
+        pathText.startsWith("Inventory") || pathText.startsWith("EnderItems")
+          ? "inventory"
+          : "selected",
+      );
+    }
   } catch (error) {
     // During lint the pack's setup functions have not run, so entity/storage
     // state may be absent. Do not turn that context-dependent type mismatch
@@ -322,6 +333,14 @@ function remove(cursor: Cursor, ctx: CommandContext): CommandResult {
   const path = parsePathSafe(cursor, pathText, pathStart);
   try {
     applyPathModify(source.root, path, "remove", null);
+    if (source.kind === "entity" && source.entity) {
+      ctx.world.importInventoryNbt(
+        source.entity,
+        pathText.startsWith("Inventory") || pathText.startsWith("EnderItems")
+          ? "inventory"
+          : "selected",
+      );
+    }
   } catch (error) {
     if (ctx.lint) return { result: 0, success: true };
     throw new CommandError(String((error as Error).message), pathStart, "remove");

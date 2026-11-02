@@ -1403,3 +1403,20 @@
 .advancementAction:hover:not(:disabled) { border-color: var(--accent); background: rgba(255, 122, 69, 0.08); }
 .advancementActionDone { color: var(--ok); border-color: rgba(139, 213, 168, 0.25); }
 .advancementAction:disabled { opacity: 0.4; }
+.playButton {
+  height: 27px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  margin-left: 4px;
+  border: 1px solid #2b333c;
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+.playButton:hover { color: var(--text); border-color: #3b464f; background: rgba(255, 255, 255, 0.035); }
+.playButtonActive { color: var(--ok); border-color: rgba(139, 213, 168, 0.3); background: rgba(139, 213, 168, 0.045); }
+@media (max-width: 900px) { .playButton { display: none; } }

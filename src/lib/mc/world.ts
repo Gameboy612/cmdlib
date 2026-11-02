@@ -1,4 +1,4 @@
-import { CompoundTag, NbtTag, Tag, numericValue } from "./nbt";
+import { CompoundTag, isCompound, isList, isString, NbtTag, Tag, numericValue } from "./nbt";
 import {
   createEntity,
   entityCustomName,
@@ -470,6 +470,7 @@ export class World {
     );
     if (existing) {
       existing.count += count;
+      this.syncInventoryNbt(target);
       return existing;
     }
     const used = new Set(state.inventory.map((item) => item.slot).filter(Boolean));
@@ -496,6 +497,7 @@ export class World {
       ...(slot ? { slot } : {}),
     };
     state.inventory.push(item);
+    this.syncInventoryNbt(target);
     return item;
   }
 
@@ -528,6 +530,7 @@ export class World {
     if (item) {
       collection.push({ ...item, slot: resolved.key });
     }
+    this.syncInventoryNbt(target);
     this.touch();
     return true;
   }
@@ -578,6 +581,7 @@ export class World {
     if (id === undefined) {
       const removed = state.inventory.reduce((sum, item) => sum + item.count, 0);
       state.inventory.length = 0;
+      this.syncInventoryNbt(target);
       return removed;
     }
     const nbtKey = nbt === undefined ? undefined : itemNbtKey(nbt);
@@ -601,6 +605,7 @@ export class World {
     }
     state.inventory.length = 0;
     state.inventory.push(...remaining);
+    this.syncInventoryNbt(target);
     return removed;
   }
 
@@ -895,6 +900,137 @@ export class World {
     this.setItemAt(target, slot, null);
     this.setItemAt(target, armorSlot, item);
     return { ok: true, message: `Equipped ${item.id.replace("minecraft:", "")}` };
+  }
+
+  /** Mirror the carried inventory, offhand, armor and ender chest into player NBT. */
+  syncInventoryNbt(target: EntityData | string | null): void {
+    const entity = typeof target === "string"
+      ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
+      : target ?? this.player();
+    if (!entity || !entity.isPlayer) return;
+    const state = this.playerState(entity);
+    if (!state) return;
+    const slotNumber = (slot?: string): number | null => {
+      if (!slot) return null;
+      if (slot === "weapon.offhand") return -106;
+      if (slot === "armor.head") return 103;
+      if (slot === "armor.chest") return 102;
+      if (slot === "armor.legs") return 101;
+      if (slot === "armor.feet") return 100;
+      const hotbar = /^hotbar\.(\d+)$/.exec(slot);
+      if (hotbar) return Number(hotbar[1]);
+      const inventory = /^inventory\.(\d+)$/.exec(slot);
+      if (inventory) return 9 + Number(inventory[1]);
+      return null;
+    };
+    const stackFields = (item: InventoryItem) => ({
+      id: Tag.string(item.id),
+      count: Tag.int(item.count),
+      ...(item.components && Object.keys(item.components).length > 0
+        ? { components: Tag.compound({ ...item.components }) }
+        : {}),
+    });
+    const toStack = (item: InventoryItem, slot: number) =>
+      Tag.compound({
+        Slot: Tag.byte(slot),
+        ...stackFields(item),
+      });
+    const inventory = state.inventory
+      .map((item, index) => {
+        const slot = slotNumber(item.slot) ?? index;
+        return toStack(item, slot);
+      });
+    const ender = state.enderchest.map((item, index) =>
+      toStack(item, Number(item.slot?.split(".")[1] ?? index)),
+    );
+    entity.nbt.value.Inventory = Tag.list(inventory, "compound");
+    entity.nbt.value.EnderItems = Tag.list(ender, "compound");
+    entity.nbt.value.SelectedItemSlot = Tag.int(state.selectedSlot);
+    const selectedItem = state.inventory.find(
+      (item) => item.slot === `hotbar.${state.selectedSlot}`,
+    );
+    if (selectedItem) {
+      entity.nbt.value.SelectedItem = Tag.compound(stackFields(selectedItem));
+    } else {
+      delete entity.nbt.value.SelectedItem;
+    }
+  }
+
+  /** Re-read inventory/ender chest after raw NBT edits such as /data modify. */
+  importInventoryNbt(
+    target: EntityData | string | null,
+    prefer: "inventory" | "selected" = "selected",
+  ): void {
+    const entity = typeof target === "string"
+      ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
+      : target ?? this.player();
+    if (!entity?.isPlayer) return;
+    const state = this.ensurePlayerState(entity);
+    const slotName = (slot: number): string | undefined => {
+      if (slot === -106) return "weapon.offhand";
+      if (slot === 103) return "armor.head";
+      if (slot === 102) return "armor.chest";
+      if (slot === 101) return "armor.legs";
+      if (slot === 100) return "armor.feet";
+      if (slot >= 0 && slot <= 8) return `hotbar.${slot}`;
+      if (slot >= 9 && slot <= 35) return `inventory.${slot - 9}`;
+      return undefined;
+    };
+    const readList = (tag: NbtTag | undefined, ender: boolean): InventoryItem[] => {
+      if (!isList(tag)) return [];
+      const items: InventoryItem[] = [];
+      for (const entry of tag.value) {
+        if (!isCompound(entry)) continue;
+        const idTag = entry.value.id;
+        if (!isString(idTag)) continue;
+        const countTag = entry.value.count ?? entry.value.Count;
+        const count = numericValue(countTag) ?? 1;
+        const slotTag = entry.value.Slot;
+        const slotNumberValue = numericValue(slotTag) ?? 0;
+        const components = isCompound(entry.value.components)
+          ? { ...entry.value.components.value }
+          : undefined;
+        items.push({
+          id: idTag.value,
+          count,
+          ...(components ? { components } : {}),
+          slot: ender
+            ? `enderchest.${slotNumberValue}`
+            : slotName(slotNumberValue),
+        });
+      }
+      return items;
+    };
+    const inventory = readList(entity.nbt.value.Inventory, false);
+    if (inventory.length > 0 || isList(entity.nbt.value.Inventory)) {
+      state.inventory = inventory;
+    }
+    const ender = readList(entity.nbt.value.EnderItems, true);
+    if (ender.length > 0 || isList(entity.nbt.value.EnderItems)) {
+      state.enderchest = ender;
+    }
+    const selected = entity.nbt.value.SelectedItemSlot;
+    if (selected && typeof selected.value === "number") {
+      state.selectedSlot = Math.max(0, Math.min(8, selected.value));
+    }
+    const selectedItemTag = entity.nbt.value.SelectedItem;
+    if (prefer === "selected" && isCompound(selectedItemTag)) {
+      const idTag = selectedItemTag.value.id;
+      if (isString(idTag)) {
+        const count = numericValue(selectedItemTag.value.count ?? selectedItemTag.value.Count) ?? 1;
+        const components = isCompound(selectedItemTag.value.components)
+          ? { ...selectedItemTag.value.components.value }
+          : undefined;
+        const slot = `hotbar.${state.selectedSlot}`;
+        state.inventory = state.inventory.filter((item) => item.slot !== slot);
+        state.inventory.push({
+          id: idTag.value,
+          count,
+          ...(components ? { components } : {}),
+          slot,
+        });
+      }
+    }
   }
 
   /* ------------------------------ schedule ---------------------------- */

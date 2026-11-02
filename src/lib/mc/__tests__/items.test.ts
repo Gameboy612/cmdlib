@@ -111,3 +111,25 @@ describe("execute if items", () => {
     ).toBe(false);
   });
 });
+
+describe("inventory NBT", () => {
+  it("mirrors inventory and ender chest into player NBT", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand('give @s written_book[custom_data={set_color_book:true}] 2');
+    sim.runCommand("item replace entity @s enderchest.4 with diamond 12");
+    const player = sim.world.player()!;
+    const inventory = player.nbt.value.Inventory;
+    expect(inventory?.type).toBe("list");
+    if (inventory?.type === "list") expect(inventory.value).toHaveLength(1);
+    expect(sim.runCommand("data get entity @s Inventory[0].id").ok).toBe(true);
+    expect(sim.runCommand("data get entity @s EnderItems[0].id").ok).toBe(true);
+    expect(sim.runCommand("data get entity @s SelectedItemSlot").ok).toBe(true);
+    expect(sim.runCommand("data get entity @s SelectedItem.id").ok).toBe(true);
+    const mod = sim.runCommand("data modify entity @s Inventory[0].count set value 5");
+    console.log("MOD", mod, JSON.stringify(player.nbt.value.Inventory), JSON.stringify(sim.world.playerInventory(player)));
+    expect(sim.world.getItemAt(player, "hotbar.0")?.count).toBe(5);
+    sim.runCommand("data modify entity @s SelectedItem.count set value 7");
+    expect(sim.world.getItemAt(player, "hotbar.0")?.count).toBe(7);
+  });
+});

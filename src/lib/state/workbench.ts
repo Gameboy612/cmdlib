@@ -53,6 +53,8 @@ interface WorkbenchState {
   toast: Toast | null;
   paletteOpen: boolean;
   searchOpen: boolean;
+  tickPlaying: boolean;
+  tickSpeed: number;
   mobilePanel: MobilePanel;
   layoutJson: string | null;
   layoutNonce: number;
@@ -100,6 +102,8 @@ interface WorkbenchState {
   showToast: (message: string, kind?: Toast["kind"]) => void;
   setPaletteOpen: (open: boolean) => void;
   setSearchOpen: (open: boolean) => void;
+  setTickPlaying: (playing: boolean) => void;
+  setTickSpeed: (speed: number) => void;
   replaceAllInFiles: (
     query: string,
     replacement: string,
@@ -329,6 +333,8 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   toast: null,
   paletteOpen: false,
   searchOpen: false,
+  tickPlaying: false,
+  tickSpeed: 1,
   mobilePanel: "editor",
   layoutJson: null,
   layoutNonce: 0,
@@ -952,6 +958,8 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   setSearchOpen: (open) => set({ searchOpen: open }),
+  setTickPlaying: (playing) => set({ tickPlaying: playing }),
+  setTickSpeed: (speed) => set({ tickSpeed: speed }),
   replaceAllInFiles: (query, replacement, useRegex, caseSensitive) => {
     if (!query) return { matches: 0, files: 0 };
     const flags = `g${caseSensitive ? "" : "i"}m`;

@@ -6,6 +6,7 @@ import type { InventoryItem } from "@/lib/mc/player";
 import { formatSlot, itemComponentSummary } from "@/lib/mc/items";
 import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/components/ui/ContextMenu";
 import { Tag } from "@/lib/mc/nbt";
+import { NbtTree } from "./NbtTree";
 import styles from "./inventory.module.css";
 
 function ItemBox({
@@ -50,6 +51,7 @@ export function InventoryPanel() {
   const [book, setBook] = useState<{ slot: string; item: InventoryItem; writable: boolean } | null>(null);
   const [pageText, setPageText] = useState("");
   const [bookTitle, setBookTitle] = useState("");
+  const [componentsItem, setComponentsItem] = useState<{ slot: string; item: InventoryItem } | null>(null);
   const health = world.playerHealth(player);
   const maxHealth = 20;
   const selected = world.playerSelectedSlot(player);
@@ -122,12 +124,7 @@ export function InventoryPanel() {
     entries.push({ separator: true }, {
       label: "Inspect components",
       disabled: !item.components,
-      onSelect: () => {
-        useWorkbench.getState().showToast(
-          `${item.id} · ${itemComponentSummary(item) || "no components"}`,
-          "info",
-        );
-      },
+      onSelect: () => setComponentsItem({ slot, item }),
     });
     setMenu({ x: event.clientX, y: event.clientY, items: entries });
   };
@@ -248,6 +245,32 @@ export function InventoryPanel() {
         </section>
       </div>
       <ContextMenu menu={menu} onClose={() => setMenu(null)} />
+      {componentsItem && (
+        <div className={styles.modalBackdrop} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setComponentsItem(null);
+        }}>
+          <div className={styles.componentsModal} role="dialog" aria-label="Item components">
+            <div className={styles.componentsHead}>
+              <div>
+                <span className={styles.componentsTitle}>{componentsItem.item.id}</span>
+                <span className={styles.componentsSlot}>{componentsItem.slot}</span>
+              </div>
+              <button type="button" onClick={() => setComponentsItem(null)} aria-label="Close components">×</button>
+            </div>
+            <div className={styles.componentsBody}>
+              <NbtTree
+                tag={Tag.compound(componentsItem.item.components ?? {})}
+                name="components"
+                defaultOpen={3}
+              />
+            </div>
+            <div className={styles.componentsFoot}>
+              {Object.keys(componentsItem.item.components ?? {}).length} component
+              {Object.keys(componentsItem.item.components ?? {}).length === 1 ? "" : "s"}
+            </div>
+          </div>
+        </div>
+      )}
       {book && (
         <div className={styles.modalBackdrop} onMouseDown={(event) => {
           if (event.target === event.currentTarget) setBook(null);

@@ -13,6 +13,9 @@ export function Toolbar() {
   const setProjectName = useWorkbench((state) => state.setProjectName);
   const setVersion = useWorkbench((state) => state.setVersion);
   const runLoad = useWorkbench((state) => state.runLoad);
+  const tickPlaying = useWorkbench((state) => state.tickPlaying);
+  const setTickPlaying = useWorkbench((state) => state.setTickPlaying);
+  const sim = useWorkbench((state) => state.sim);
   const workspace = useActiveWorkspace();
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const [editing, setEditing] = useState(false);
@@ -86,6 +89,26 @@ export function Toolbar() {
       <div className={styles.toolbarCenter}>
         <button type="button" className={styles.runButton} onClick={runLoad} title="Run /reload">
           <span aria-hidden>⟳</span> /reload
+        </button>
+        <button
+          type="button"
+          className={`${styles.playButton} ${tickPlaying ? styles.playButtonActive : ""}`}
+          onClick={() => {
+            if (tickPlaying) {
+              setTickPlaying(false);
+              return;
+            }
+            if (sim.world.tickFrozen) {
+              sim.world.tickFrozen = false;
+              sim.world.touch();
+            }
+            setTickPlaying(true);
+          }}
+          title={tickPlaying ? "Pause timeline" : "Play timeline"}
+          aria-label={tickPlaying ? "Pause timeline" : "Play timeline"}
+        >
+          <span aria-hidden>{tickPlaying ? "❚❚" : "▶"}</span>
+          {tickPlaying ? "pause" : "play"}
         </button>
       </div>
 

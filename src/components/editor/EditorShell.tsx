@@ -8,6 +8,7 @@ import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
 import { SearchPanel } from "./SearchPanel";
+import { TimelineDriver } from "./TimelineDriver";
 import { Preferences } from "./Preferences";
 import { usePreferences } from "@/lib/state/preferences";
 import { matchesBinding } from "@/lib/keybindings";
@@ -108,6 +109,7 @@ export function EditorShell() {
         {narrow ? <MobileWorkspace /> : <DockWorkspace key={layoutNonce} />}
       </main>
       <StatusBar />
+      <TimelineDriver />
       <CommandPalette />
       <SearchPanel />
       <Preferences open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />

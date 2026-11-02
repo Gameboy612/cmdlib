@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useSimRevision, useWorkbench } from "@/lib/state/workbench";
 import type { ScheduledFunction } from "@/lib/mc/world";
 import styles from "./timeline.module.css";
@@ -24,8 +24,10 @@ interface QueueRow {
 export function TimelinePanel() {
   const sim = useWorkbench((state) => state.sim);
   const revision = useSimRevision();
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<number>(1);
+  const playing = useWorkbench((state) => state.tickPlaying);
+  const setPlaying = useWorkbench((state) => state.setTickPlaying);
+  const speed = useWorkbench((state) => state.tickSpeed);
+  const setSpeed = useWorkbench((state) => state.setTickSpeed);
   const frozen = sim.world.tickFrozen;
   const tickRate = sim.world.tickRate;
 
@@ -34,16 +36,6 @@ export function TimelinePanel() {
   useEffect(() => {
     setPlaying(false);
   }, [sim]);
-
-  useEffect(() => {
-    if (!playing || frozen) return;
-    const interval = Math.max(1, 1000 / (tickRate * speed));
-    const timer = window.setInterval(() => {
-      sim.tick();
-    }, interval);
-    return () => window.clearInterval(timer);
-    // `sim` is a dependency so a reset/version switch rebuilds the interval.
-  }, [playing, speed, sim, frozen, tickRate]);
 
   const setFrozen = (next: boolean) => {
     sim.world.tickFrozen = next;
@@ -99,7 +91,7 @@ export function TimelinePanel() {
               setFrozen(false);
               setPlaying(true);
             } else {
-              setPlaying((value) => !value);
+              setPlaying(!playing);
             }
           }}
           aria-pressed={playing && !frozen}
