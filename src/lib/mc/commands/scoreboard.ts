@@ -68,7 +68,14 @@ function objectives(cursor: Cursor, ctx: CommandContext): CommandResult {
     case "remove": {
       const name = readObjective(cursor);
       if (!ctx.world.objectives.has(name)) {
-        cursor.error(`Unknown objective '${name}'`, cursor.mark() - name.length, "unknown-objective");
+        if (!ctx.lint) {
+          print(
+            ctx,
+            "warning",
+            `Objective '${name}' does not exist; nothing to remove`,
+          );
+        }
+        return { result: 0, success: false };
       }
       if (!ctx.lint) ctx.world.removeObjective(name);
       feedback(ctx, "success", `Removed objective '${name}'`);

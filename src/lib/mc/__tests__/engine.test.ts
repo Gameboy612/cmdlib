@@ -417,3 +417,40 @@ describe("datapack compatibility features", () => {
     expect(entityPos(sim.world.player()!).z).toBeGreaterThan(1);
   });
 });
+
+describe("scoreboard objective removal", () => {
+  it("warns instead of erroring when the objective is missing", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    const outcome = sim.runCommand("scoreboard objectives remove missing");
+    expect(outcome.ok).toBe(true);
+    expect(outcome.success).toBe(false);
+    expect(
+      sim.world.logs.some(
+        (entry) =>
+          entry.kind === "warning" &&
+          entry.text.includes("does not exist"),
+      ),
+    ).toBe(true);
+    expect(
+      sim.world.logs.some(
+        (entry) =>
+          entry.kind === "error" &&
+          entry.text.includes("missing"),
+      ),
+    ).toBe(false);
+  });
+
+  it("continues a function after the warning", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/remove_missing.mcfunction"] = [
+      "scoreboard objectives remove missing",
+      "scoreboard objectives add still_here dummy",
+    ].join("\n");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("function cmdlib:remove_missing");
+    expect(sim.world.objectives.has("still_here")).toBe(true);
+  });
+});
