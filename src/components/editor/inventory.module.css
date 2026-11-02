@@ -26,3 +26,70 @@
 @media (max-width: 700px) {
   .hotbar, .inventoryGrid, .enderGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 5, 6, 0.64);
+  backdrop-filter: blur(7px);
+}
+.bookModal {
+  width: min(520px, 100%);
+  border: 1px solid #3a3024;
+  border-radius: 8px;
+  background: #17130d;
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+.bookHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid #3a3024;
+  color: #e6d3a9;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bookHead button { color: #b9a680; font-size: 14px; }
+.bookModal textarea {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  padding: 14px;
+  background: #efe3c6;
+  color: #33271a;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.bookModal textarea[readonly] { opacity: 0.9; }
+.bookActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  color: #9d8b6d;
+  font-family: var(--mono);
+  font-size: 7.5px;
+}
+.bookActions button {
+  border: 1px solid rgba(198, 160, 91, 0.35);
+  border-radius: 3px;
+  padding: 4px 8px;
+  color: #e6d3a9;
+  font-family: var(--mono);
+  font-size: 8px;
+}
+.bookActions button:hover { background: rgba(198, 160, 91, 0.1); }

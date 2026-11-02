@@ -60,3 +60,28 @@ describe("items, components and health", () => {
     expect(sim.world.playerHealth()).toBe(15);
   });
 });
+
+describe("right-click item behavior", () => {
+  it("consumes food and opens books", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand("give @s apple 2");
+    const player = sim.world.player()!;
+    const result = sim.world.useItem(player, "weapon.mainhand");
+    expect(result.kind).toBe("used");
+    expect(sim.world.getItemAt(player, "weapon.mainhand")?.count).toBe(1);
+    sim.runCommand("give @s written_book 1");
+    // written book is in the next free hotbar slot
+    expect(sim.world.useItem(player, "hotbar.1").kind).toBe("book");
+  });
+
+  it("equips armor into the matching slot", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand("item replace entity @s weapon.mainhand with diamond_helmet 1");
+    const player = sim.world.player()!;
+    expect(sim.world.equipItem(player, "weapon.mainhand").ok).toBe(true);
+    expect(sim.world.getItemAt(player, "armor.head")?.id).toBe("minecraft:diamond_helmet");
+    expect(sim.world.getItemAt(player, "weapon.mainhand")).toBeUndefined();
+  });
+});

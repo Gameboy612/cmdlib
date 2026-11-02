@@ -3,6 +3,8 @@ import {
   createEntity,
   entityCustomName,
   entityPos,
+  entityRotation,
+  setEntityPos,
   EntityData,
 } from "./entities";
 import type { Vec3 } from "./entities";
@@ -506,7 +508,7 @@ export class World {
     const exact = collection.find((item) => item.slot === resolved.key);
     if (exact) return exact;
     if (resolved.key === `hotbar.${state.selectedSlot}`) {
-      return collection.find((item) => !item.slot) ?? collection[0];
+      return collection.find((item) => !item.slot);
     }
     return undefined;
   }
@@ -791,6 +793,108 @@ export class World {
 
   getItemModifier(id: string): ItemModifierDefinition | undefined {
     return this.itemModifiers.get(id);
+  }
+
+  useItem(
+    target: EntityData | string | null,
+    slot: string,
+  ): { kind: "book" | "used" | "info"; message: string } {
+    const item = this.getItemAt(target, slot);
+    const player = typeof target === "string"
+      ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
+      : target ?? this.player();
+    if (!item || !player) return { kind: "info", message: "That slot is empty" };
+
+    if (item.id === "minecraft:writable_book" || item.id === "minecraft:written_book") {
+      return { kind: "book", message: "Book opened" };
+    }
+
+    const consume = () => {
+      const next = { ...item, count: item.count - 1 };
+      this.setItemAt(player, slot, next.count > 0 ? next : null);
+    };
+
+    if (item.id === "minecraft:ender_pearl") {
+      const pos = entityPos(player);
+      const rotation = entityRotation(player);
+      const yaw = (rotation.yaw * Math.PI) / 180;
+      setEntityPos(player, {
+        x: pos.x - Math.sin(yaw) * 8,
+        y: pos.y,
+        z: pos.z + Math.cos(yaw) * 8,
+      });
+      this.damagePlayer(player, 5);
+      consume();
+      return { kind: "used", message: "Teleported with an ender pearl" };
+    }
+
+    if (item.id === "minecraft:carrot_on_a_stick" || item.id === "minecraft:warped_fungus_on_a_stick") {
+      return { kind: "info", message: "Requires a saddled pig or strider to use" };
+    }
+
+    const foodId = item.id.replace("minecraft:", "");
+    const foodValues: Record<string, number> = {
+      apple: 4, golden_apple: 4, enchanted_golden_apple: 4, bread: 5,
+      cooked_beef: 8, cooked_porkchop: 8, cooked_mutton: 6, cooked_chicken: 6,
+      carrot: 3, golden_carrot: 6, potato: 1, baked_potato: 5, beetroot: 1,
+      cookie: 2, melon_slice: 2, sweet_berries: 2, glow_berries: 2,
+    };
+    const foodComponent = item.components?.["minecraft:food"];
+    const componentNutrition = foodComponent && typeof foodComponent.value === "object" && !Array.isArray(foodComponent.value)
+      ? numericValue(foodComponent.value.nutrition) ?? NaN
+      : NaN;
+    const nutrition = Number.isFinite(componentNutrition) ? componentNutrition : foodValues[foodId] ?? 0;
+    if (nutrition > 0) {
+      const state = this.ensurePlayerState(player);
+      const food = player.nbt.value.foodLevel;
+      const current = typeof food?.value === "number" ? food.value : 20;
+      player.nbt.value.foodLevel = Tag.int(Math.min(20, current + nutrition));
+      if (foodId.includes("golden_apple")) {
+        player.nbt.value.Health = Tag.float(Math.min(20, this.playerHealth(player) + 4));
+      }
+      consume();
+      return { kind: "used", message: `Ate ${foodId.replace(/_/g, " ")}` };
+    }
+
+    const potion = item.components?.["minecraft:potion_contents"];
+    if (potion) {
+      const potionTag = potion.type === "compound" ? potion.value.potion : undefined;
+      const potionName = potionTag?.type === "string" ? potionTag.value : "";
+      if (potionName.includes("healing") || potionName.includes("regeneration")) {
+        const health = this.playerHealth(player);
+        player.nbt.value.Health = Tag.float(Math.min(20, health + 4));
+      } else {
+        this.applyStatusEffect(player, {
+          id: "minecraft:speed",
+          amplifier: 0,
+          durationTicks: 20 * 20,
+          hidden: false,
+        });
+      }
+      consume();
+      return { kind: "used", message: `Used ${potionName || "potion"}` };
+    }
+
+    if (item.id === "minecraft:snowball" || item.id === "minecraft:egg") {
+      consume();
+      return { kind: "used", message: `Threw ${item.id.replace("minecraft:", "").replace(/_/g, " ")}` };
+    }
+
+    return { kind: "info", message: "No simulated right-click behavior for this item" };
+  }
+
+  equipItem(target: EntityData | string | null, slot: string): { ok: boolean; message: string } {
+    const item = this.getItemAt(target, slot);
+    if (!item) return { ok: false, message: "That slot is empty" };
+    const armorSlot = item.id.endsWith("helmet") ? "armor.head"
+      : item.id.endsWith("chestplate") ? "armor.chest"
+        : item.id.endsWith("leggings") ? "armor.legs"
+          : item.id.endsWith("boots") ? "armor.feet"
+            : null;
+    if (!armorSlot) return { ok: false, message: "This item cannot be equipped" };
+    this.setItemAt(target, slot, null);
+    this.setItemAt(target, armorSlot, item);
+    return { ok: true, message: `Equipped ${item.id.replace("minecraft:", "")}` };
   }
 
   /* ------------------------------ schedule ---------------------------- */

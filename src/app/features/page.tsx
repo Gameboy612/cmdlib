@@ -26,7 +26,7 @@ const PACKS = [
   ["Non-function tags", "Item, block, entity type, fluid and game event tags."],
   ["Predicates", "Datapack predicates with references, cycles and common condition types."],
   ["Advancements", "Criteria, display data, rewards and a dockable Advancements panel. Tick and inventory triggers run rewards automatically."],
-  ["Items & components", "Item IDs, 1.20.5+ components, stack counts, player slots, ender chests and item modifiers, with a dockable Inventory panel."],
+  ["Items & components", "Item IDs, 1.20.5+ components, stack counts, player slots, ender chests and item modifiers, with a dockable Inventory panel and right-click Use/Equip/book actions."],
   ["Imports", "Local ZIP projects, GitHub repositories, nested packs and multi-pack archives."],
   ["Large archives", "Up to 50,000 datapack files or 128 MB expanded; non-datapack assets are skipped before decompression."],
   ["Explorer scaling", "Folders page 300 rows at a time so huge packs remain responsive."],
@@ -137,7 +137,7 @@ export default function FeaturesPage() {
             <span><b>Versions</b> 1.13 – 26.3</span>
             <span><b>Runtime commands</b> 28</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 162 passing</span>
+            <span><b>Tests</b> 164 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>
