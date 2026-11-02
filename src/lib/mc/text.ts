@@ -1,4 +1,5 @@
 import { isCompound, isList, NbtTag, numericValue, stringifySnbt, Tag } from "./nbt";
+import { parseTextComponent } from "./snbt";
 
 /**
  * Text component rendering. Minecraft's component tree is deep; cmdlib renders
@@ -49,6 +50,11 @@ export interface TextRenderContext {
     id: string,
     path: string,
   ) => NbtTag | null;
+  resolveNbtTags?: (
+    source: "storage" | "entity" | "block",
+    id: string,
+    path: string,
+  ) => NbtTag[];
   resolveKeybind?: (key: string) => string;
   resolveTranslation?: (key: string, fallback: string | null) => string | null;
 }
@@ -173,6 +179,40 @@ function collect(
   }
   if (!isCompound(component)) return;
   const style = styleFrom(component, parentStyle);
+  const nbtPath = readString(component, "nbt");
+  if (nbtPath !== undefined && ctx.resolveNbtTags) {
+    const storage = readString(component, "storage");
+    const entity = readString(component, "entity");
+    const block = readString(component, "block");
+    const source = storage ? "storage" : entity ? "entity" : block ? "block" : "storage";
+    const id = storage ?? entity ?? block ?? "";
+    const tags = ctx.resolveNbtTags(source, id, nbtPath);
+    if (tags.length > 0) {
+      const interpret = readBoolean(component, "interpret") ?? false;
+      const separator = component.value["separator"] ?? Tag.compound({
+        text: Tag.string(", "),
+        color: Tag.string("gray"),
+      });
+      tags.forEach((tag, index) => {
+        if (index > 0) collect(separator, ctx, style, out);
+        if (interpret) {
+          collect(
+            tag.type === "string" ? parseTextComponent(tag.value) : tag,
+            ctx,
+            style,
+            out,
+          );
+        } else {
+          out.push({ text: formatTagForComponent(tag), ...style });
+        }
+      });
+      const nbtExtra = component.value["extra"];
+      if (isList(nbtExtra)) {
+        for (const child of nbtExtra.value) collect(child, ctx, style, out);
+      }
+      return;
+    }
+  }
   const selectorText = readString(component, "selector");
   if (selectorText && ctx.resolveSelectorComponents) {
     const selected = ctx.resolveSelectorComponents(selectorText);

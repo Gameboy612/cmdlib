@@ -1213,6 +1213,24 @@ export class World {
           return [];
         }
       },
+      resolveNbtTags: (sourceType, id, path) => {
+        try {
+          const segments = path ? parseNbtPath(path) : [];
+          if (sourceType === "storage") {
+            const storage = this.storages.get(id);
+            return storage ? getPathValues(storage, segments) : [];
+          }
+          if (sourceType === "entity") {
+            const target = this.entities.find(
+              (entity) => entity.username === id || entity.uuid === id,
+            );
+            return target ? getPathValues(target.nbt, segments) : [];
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      },
       resolveNbtTag: (sourceType, id, path) => {
         try {
           const segments = path ? parseNbtPath(path) : [];

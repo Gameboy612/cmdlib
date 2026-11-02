@@ -669,3 +669,24 @@ describe("selector text components", () => {
     expect(runs[0]?.color).toBe("#FFAA00");
   });
 });
+
+describe("NBT text component interpret", () => {
+  it("renders the stored NBT value as a text component", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand(
+      'data merge storage test:storage {message:{text:"Hello",color:"gold"},parts:["one","two"]}',
+    );
+    const component = parseSnbt('{storage:"test:storage",nbt:"message",interpret:true}');
+    const runs = renderTextComponent(component, sim.world.textContext(sim.world.player()!));
+    expect(runs.map((run) => run.text).join("")).toBe("Hello");
+    expect(runs[0]?.color).toBe("#FFAA00");
+
+    const raw = renderTextComponent(
+      parseSnbt('{storage:"test:storage",nbt:"message"}'),
+      sim.world.textContext(sim.world.player()!),
+    );
+    expect(raw.map((run) => run.text).join("")).toContain("Hello");
+  });
+});
