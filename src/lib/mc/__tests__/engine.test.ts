@@ -637,3 +637,22 @@ describe("dynamic macro command lines", () => {
     ).toBe(true);
   });
 });
+
+describe("storage text components", () => {
+  it("resolves the 1.21.5 storage/nbt component form", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand('data merge storage test:storage {team:"red",message:"hello"}');
+    sim.runCommand(
+      'tellraw @a [{"text":"Changed team color to "},{"storage":"test:storage","nbt":"team"}]',
+    );
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes('Changed team color to "red"')),
+    ).toBe(true);
+    sim.runCommand(
+      'tellraw @a [{"text":"Stored: "},{"storage":"test:storage","nbt":""}]',
+    );
+    expect(sim.world.logs.some((entry) => entry.text.includes("Stored: "))).toBe(true);
+  });
+});

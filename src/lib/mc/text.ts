@@ -43,6 +43,11 @@ export interface TextRenderContext {
   resolveScore?: (holder: string, objective: string) => number | null;
   resolveSelector?: (selector: string) => string[];
   resolveEntityNbt?: (selector: string, path: string) => string | null;
+  resolveNbtTag?: (
+    source: "storage" | "entity" | "block",
+    id: string,
+    path: string,
+  ) => NbtTag | null;
   resolveKeybind?: (key: string) => string;
   resolveTranslation?: (key: string, fallback: string | null) => string | null;
 }
@@ -125,10 +130,23 @@ function componentText(component: NbtTag, ctx: TextRenderContext): string {
     return (ctx.resolveSelector?.(selector) ?? []).join(separators);
   }
 
-  const nbt = component.value["nbt"];
-  if (isCompound(nbt)) {
-    const source = readString(nbt, "source") ?? "storage";
-    const path = readString(nbt, "path") ?? "";
+  const nbtValue = component.value["nbt"];
+  if (typeof nbtValue?.value === "string") {
+    const storage = readString(component, "storage");
+    const entity = readString(component, "entity");
+    const block = readString(component, "block");
+    const source = storage ? "storage" : entity ? "entity" : block ? "block" : "storage";
+    const id = storage ?? entity ?? block ?? "";
+    const tag = ctx.resolveNbtTag?.(source, id, nbtValue.value);
+    if (tag) {
+      if (readBoolean(component, "interpret")) return plainText(tag, ctx);
+      return formatTagForComponent(tag);
+    }
+    return "";
+  }
+  if (isCompound(nbtValue)) {
+    const source = readString(nbtValue, "source") ?? "storage";
+    const path = readString(nbtValue, "path") ?? "";
     return ctx.resolveEntityNbt?.(source, path) ?? "";
   }
 
