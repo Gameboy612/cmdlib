@@ -278,13 +278,12 @@ export const tellrawHandler: Handler = (cursor, ctx) => {
   } catch {
     entities = [];
   }
-  const text = ctx.world.plain(component.tag);
-  ctx.world.chat(component.tag, text);
-  if (entities.length === 0) {
-    ctx.world.log("info", `(tellraw to no players) ${text}`);
+  if (entities.length > 0) {
+    const text = ctx.world.plain(component.tag);
+    ctx.world.chat(component.tag, text);
   }
   void targetsStart;
-  return { result: entities.length, success: true };
+  return { result: entities.length, success: entities.length > 0 };
 };
 
 export const returnHandler: Handler = (cursor, ctx) => {

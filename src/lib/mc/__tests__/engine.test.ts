@@ -564,3 +564,21 @@ describe("data get result values", () => {
     expect(sim.runCommand("data get storage test:shape obj").result).toBe(2);
   });
 });
+
+describe("tellraw targeting", () => {
+  it("does not print when no players match", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    const before = sim.world.logs.filter((entry) => entry.kind === "chat").length;
+    sim.runCommand('tellraw @e[type=creeper] {"text":"SHOULD-NOT-APPEAR"}');
+    const after = sim.world.logs.filter((entry) => entry.kind === "chat").length;
+    expect(after).toBe(before);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("SHOULD-NOT-APPEAR")),
+    ).toBe(false);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("tellraw to no players")),
+    ).toBe(false);
+  });
+});
