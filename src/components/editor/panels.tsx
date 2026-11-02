@@ -142,6 +142,8 @@ export function ExplorerPanel() {
   );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
+  const [visibleFolder, setVisibleFolder] = useState<string | null>(null);
+  const treeRef = useRef<HTMLDivElement | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [draft, setDraft] = useState<ExplorerDraft | null>(null);
   const [dragPath, setDragPath] = useState<string | null>(null);
@@ -149,6 +151,14 @@ export function ExplorerPanel() {
   const draftInput = useRef<HTMLInputElement | null>(null);
   const lastCreateNonce = useRef(0);
   const explorerCreate = useWorkbench((state) => state.explorerCreate);
+
+  const activeFolder = activePath.includes("/")
+    ? activePath.slice(0, activePath.lastIndexOf("/"))
+    : "";
+
+  useEffect(() => {
+    setVisibleFolder(null);
+  }, [activePath, project.id]);
 
   const activeNamespace = useMemo(() => {
     const match = /^data\/([^/]+)\//.exec(activePath);
@@ -582,7 +592,8 @@ export function ExplorerPanel() {
         {node.name && (
           <div
             className={`${styles.treeFolder} ${dropTarget === node.path ? styles.treeDrop : ""}`}
-            style={{ paddingLeft: 8 + depth * 13, top: depth * 23 }}
+            style={{ paddingLeft: 8 + depth * 13 }}
+            data-folder={node.path}
             onClick={() => toggle(node.path)}
             onDragOver={(event) => {
               if (!dragPath) return;
@@ -668,8 +679,33 @@ export function ExplorerPanel() {
           ))}
         </div>
       )}
+      <div className={styles.treePath} title={visibleFolder ?? activeFolder}>
+        <span className={styles.treePathLabel}>path</span>
+        {(visibleFolder ?? activeFolder)
+          .split("/")
+          .filter(Boolean)
+          .map((segment, index) => (
+            <span key={`${segment}-${index}`} className={styles.treePathSegment}>
+              {index > 0 && <i>/</i>}
+              {segment}
+            </span>
+          ))}
+      </div>
       <div
         className={`${styles.tree} ${dropTarget === "" ? styles.treeDrop : ""}`}
+        ref={treeRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          const top = element.getBoundingClientRect().top;
+          const folders = element.querySelectorAll<HTMLElement>("[data-folder]");
+          let current = "";
+          folders.forEach((folder) => {
+            if (folder.getBoundingClientRect().top - top <= 24) {
+              current = folder.dataset.folder ?? current;
+            }
+          });
+          setVisibleFolder(current || activeFolder);
+        }}
         onContextMenu={(event) =>
           openMenu(event, [
             { label: "New function…", onSelect: () => addFunction() },
@@ -1180,6 +1216,100 @@ export function ConsolePanel() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Advancements                                                       */
+/* ------------------------------------------------------------------ */
+export function AdvancementsPanel() {
+  const { world, revision } = useWorldSnapshot();
+  const runCommand = useWorkbench((state) => state.runCommand);
+  const player = world.player();
+  const holder = player?.username ?? "";
+  const completed = world.advancementProgressFor(holder);
+  const advancements = useMemo(
+    () =>
+      [...world.advancements.values()].sort((a, b) =>
+        a.id.localeCompare(b.id),
+      ),
+    [world, revision],
+  );
+
+  return (
+    <PanelShell
+      title="Advancements"
+      subtitle={`${completed.size} / ${advancements.length} complete`}
+      actions={<span className={styles.monoTag}>{holder || "no player"}</span>}
+    >
+      {advancements.length === 0 ? (
+        <EmptyState
+          title="No advancements yet"
+          body="Add a JSON file under data/<namespace>/advancement/ to define one."
+        />
+      ) : (
+        <div className={styles.advancementList}>
+          {advancements.map((advancement) => {
+            const granted = completed.has(advancement.id);
+            const title = advancement.display?.title
+              ? world.plain(advancement.display.title)
+              : advancement.id;
+            const description = advancement.display?.description
+              ? world.plain(advancement.display.description)
+              : "";
+            const triggers = advancement.criteria
+              .map((criterion) => criterion.trigger)
+              .join(", ");
+            return (
+              <article
+                key={advancement.id}
+                className={`${styles.advancementCard} ${granted ? styles.advancementCardDone : ""}`}
+              >
+                <span className={styles.advancementIcon} aria-hidden>
+                  {advancement.display?.icon?.replace("minecraft:", "").slice(0, 2).toUpperCase() || "✦"}
+                </span>
+                <div className={styles.advancementMain}>
+                  <div className={styles.advancementTitleRow}>
+                    <strong>{title}</strong>
+                    {advancement.display?.frame && (
+                      <span className={styles.advancementFrame}>{advancement.display.frame}</span>
+                    )}
+                    {advancement.display?.hidden && (
+                      <span className={styles.advancementFrame}>hidden</span>
+                    )}
+                    {!advancement.display && (
+                      <span className={styles.advancementFrame}>internal</span>
+                    )}
+                  </div>
+                  {description && (
+                    <p className={styles.advancementDescription}>{description}</p>
+                  )}
+                  <div className={styles.advancementMeta}>
+                    <span>{advancement.id}</span>
+                    <span>{triggers}</span>
+                    {advancement.rewards.function && (
+                      <span>reward: {advancement.rewards.function}</span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={`${styles.advancementAction} ${granted ? styles.advancementActionDone : ""}`}
+                  onClick={() =>
+                    runCommand(
+                      `advancement ${granted ? "revoke" : "grant"} @s only ${advancement.id}`,
+                    )
+                  }
+                  disabled={!player}
+                >
+                  {granted ? "revoke" : "grant"}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </PanelShell>
   );
 }
 

@@ -7,6 +7,7 @@ import "dockview/dist/styles/dockview.css";
 import { useWorkbench } from "@/lib/state/workbench";
 import { WorkspaceContext } from "./WorkspaceContext";
 import {
+  AdvancementsPanel,
   ConsolePanel,
   EntitiesPanel,
   ExplorerPanel,
@@ -27,6 +28,7 @@ const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> =
   preview: () => <PreviewPanel />,
   console: () => <ConsolePanel />,
   timeline: () => <TimelinePanel />,
+  advancements: () => <AdvancementsPanel />,
   scoreboard: () => <ScoreboardPanel />,
   storage: () => <StoragePanel />,
   entities: () => <EntitiesPanel />,
@@ -40,6 +42,7 @@ const PANEL_META: Record<string, { title: string; component: string }> = {
   preview: { title: "Preview", component: "preview" },
   console: { title: "Console", component: "console" },
   timeline: { title: "Timeline", component: "timeline" },
+  advancements: { title: "Advancements", component: "advancements" },
   scoreboard: { title: "Scores", component: "scoreboard" },
   storage: { title: "Storage", component: "storage" },
   entities: { title: "Entities", component: "entities" },
@@ -227,6 +230,13 @@ function buildDefaultLayout(api: DockviewApi): void {
       component: "timeline",
       title: "Timeline",
       position: { referencePanel: "console", direction: "within" },
+      inactive: true,
+    });
+    api.addPanel({
+      id: "advancements",
+      component: "advancements",
+      title: "Advancements",
+      position: { referencePanel: "timeline", direction: "within" },
       inactive: true,
     });
   }

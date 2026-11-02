@@ -13,6 +13,7 @@ import {
   triggerHandler,
 } from "./player";
 import {
+  advancementHandler,
   forceloadHandler,
   killHandler,
   meHandler,
@@ -37,6 +38,7 @@ export const HANDLERS: Record<string, CommandHandler> = {
   scoreboard: scoreboardHandler,
   title: titleHandler,
   function: functionHandler,
+  advancement: advancementHandler,
   forceload: forceloadHandler,
   tick: tickHandler,
   data: dataHandler,

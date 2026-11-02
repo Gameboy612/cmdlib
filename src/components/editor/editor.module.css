@@ -532,6 +532,25 @@
 .packDot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; flex: none; }
 .packName { flex: none; min-width: 0; max-width: none; white-space: nowrap; }
 .packVersion { flex: none; margin-left: auto; font-size: 6.5px; color: var(--faint); }
+.treePath {
+  flex: none;
+  height: 23px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border-bottom: 1px solid #1e242b;
+  background: #0b0f13;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.treePathLabel { flex: none; color: var(--faint); font-size: 6.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.treePathSegment { overflow: hidden; text-overflow: ellipsis; }
+.treePathSegment i { color: #46515c; font-style: normal; margin-right: 4px; }
 .tree { flex: 1; min-height: 0; overflow: auto; padding: 4px 0; font-family: var(--mono); font-size: 9.5px; }
 .treeFolder, .treeRow {
   height: 23px;
@@ -543,14 +562,7 @@
   cursor: pointer;
   user-select: none;
 }
-.treeFolder {
-  position: sticky;
-  z-index: 3;
-  background: #0b0f13;
-  border-bottom: 1px solid rgba(233, 229, 220, 0.045);
-}
-.treeFolder:hover { background: #11161b; color: var(--text-dim); }
-.treeRow:hover { background: rgba(255, 255, 255, 0.045); color: var(--text-dim); }
+.treeFolder:hover, .treeRow:hover { background: rgba(255, 255, 255, 0.045); color: var(--text-dim); }
 .treeRowActive { background: rgba(255, 122, 69, 0.1); color: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
 .treeRowUnused .fileIcon { color: var(--warn); }
 .treeWarn { margin-left: auto; color: var(--warn); font-size: 8px; padding-right: 4px; }
@@ -1339,3 +1351,55 @@
   .projectEdit { display: none; }
   .palette { max-height: 82vh; }
 }
+
+.advancementList { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.advancementCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid #20272e;
+  border-radius: 6px;
+  background: #0c1014;
+}
+.advancementCardDone { border-color: rgba(139, 213, 168, 0.28); background: rgba(139, 213, 168, 0.035); }
+.advancementIcon {
+  width: 25px;
+  height: 25px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #303942;
+  border-radius: 4px;
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+.advancementMain { flex: 1; min-width: 0; }
+.advancementTitleRow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.advancementTitleRow strong { color: var(--text); font-size: 11px; font-weight: 600; }
+.advancementFrame {
+  color: var(--faint);
+  border: 1px solid #2a333c;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: var(--mono);
+  font-size: 6.5px;
+  text-transform: uppercase;
+}
+.advancementDescription { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.advancementMeta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; color: var(--faint); font-family: var(--mono); font-size: 7px; }
+.advancementAction {
+  flex: none;
+  border: 1px solid #2b343d;
+  border-radius: 3px;
+  padding: 4px 6px;
+  color: var(--accent-soft);
+  font-family: var(--mono);
+  font-size: 7px;
+  text-transform: uppercase;
+}
+.advancementAction:hover:not(:disabled) { border-color: var(--accent); background: rgba(255, 122, 69, 0.08); }
+.advancementActionDone { color: var(--ok); border-color: rgba(139, 213, 168, 0.25); }
+.advancementAction:disabled { opacity: 0.4; }

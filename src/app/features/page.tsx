@@ -25,6 +25,7 @@ const PACKS = [
   ["Functions", "Namespaced .mcfunction files, macros, function tags and load/tick tags."],
   ["Non-function tags", "Item, block, entity type, fluid and game event tags."],
   ["Predicates", "Datapack predicates with references, cycles and common condition types."],
+  ["Advancements", "Criteria, display data, rewards and a dockable Advancements panel. Tick and inventory triggers run rewards automatically."],
   ["Imports", "Local ZIP projects, GitHub repositories, nested packs and multi-pack archives."],
   ["Large archives", "Up to 50,000 datapack files or 128 MB expanded; non-datapack assets are skipped before decompression."],
   ["Explorer scaling", "Folders page 300 rows at a time so huge packs remain responsive."],
@@ -52,6 +53,7 @@ const COMMANDS = [
   ["/trigger", "Bare add-one, add <value> and set <value>, with enabled-trigger completion."],
   ["/random", "value, roll and reset with integer ranges and optional sequences."],
   ["/tick", "freeze, unfreeze, rate, step, sprint and query, integrated with the timeline."],
+  ["/advancement", "grant and revoke with only/everything modes and criteria completion."],
 ];
 
 const EXECUTE = [
@@ -83,7 +85,7 @@ const TOOLS = [
 
 const NOT_SIMULATED = [
   "datapack", "help", "time", "weather", "gamerule", "fill", "clone",
-  "particle", "playsound", "bossbar", "xp", "advancement", "attribute",
+  "particle", "playsound", "bossbar", "xp", "attribute",
   "item", "loot", "compute", "posteffect", "dialog", "version",
   "list", "seed",
 ];
@@ -130,9 +132,9 @@ export default function FeaturesPage() {
           </p>
           <div className={styles.heroMeta}>
             <span><b>Versions</b> 1.13 – 26.3</span>
-            <span><b>Runtime commands</b> 24</span>
+            <span><b>Runtime commands</b> 25</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 154 passing</span>
+            <span><b>Tests</b> 157 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

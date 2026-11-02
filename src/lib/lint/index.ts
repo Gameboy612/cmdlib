@@ -1,6 +1,7 @@
 import { Project, parseDatapack, collectObjectiveIds, collectStorageIds } from "../mc/datapack";
 import { VersionProfile, getVersion } from "../mc/version";
 import { World } from "../mc/world";
+import { parseAdvancementFiles, type AdvancementDefinition } from "../mc/advancements";
 import { createEntity, entityPos } from "../mc/entities";
 import type { EntityData } from "../mc/entities";
 import {
@@ -91,6 +92,12 @@ const lintRuntime: Runtime = {
   tick() {
     // Linting never advances the world.
   },
+  grantAdvancement() {
+    return false;
+  },
+  revokeAdvancement() {
+    return false;
+  },
 };
 
 const LINT_MAX_MS = 3_000;
@@ -158,11 +165,53 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
       sharedPredicates.set(predicate.id, predicate);
     }
   }
+  const parsedAdvancements = parseAdvancementFiles(project.files);
+  const sharedAdvancements = new Map<string, AdvancementDefinition>(
+    parsedAdvancements.advancements,
+  );
+  for (const source of contextSources) {
+    for (const [id, advancement] of parseAdvancementFiles(source).advancements) {
+      sharedAdvancements.set(id, advancement);
+    }
+  }
   world.setFunctions([...sharedFunctions.values()]);
   world.setFunctionTags([...sharedTags.values()]);
   world.setPredicates(sharedPredicates);
+  world.setAdvancements(sharedAdvancements);
   for (const error of parsedPredicates.errors) {
     reportPredicateFileIssue(project, error.path, error.message, error.code, "error", report);
+  }
+  for (const error of parsedAdvancements.errors) {
+    const content = project.files[error.path] ?? "";
+    report({
+      path: error.path,
+      severity: "error",
+      code: "invalid-advancement",
+      message: error.message,
+      line: 1,
+      column: 1,
+      endLine: 1,
+      endColumn: Math.max(1, content.split(/\r?\n/)[0]?.length ?? 1),
+      from: 0,
+      to: Math.max(1, content.length),
+    });
+  }
+  for (const advancement of parsedAdvancements.advancements.values()) {
+    if (advancement.rewards.function && !world.getFunction(advancement.rewards.function)) {
+      const content = project.files[advancement.path] ?? "";
+      report({
+        path: advancement.path,
+        severity: "error",
+        code: "unknown-function",
+        message: `Advancement reward function '${advancement.rewards.function}' does not exist.`,
+        line: 1,
+        column: 1,
+        endLine: 1,
+        endColumn: Math.max(1, content.split(/\r?\n/)[0]?.length ?? 1),
+        from: 0,
+        to: Math.max(1, content.length),
+      });
+    }
   }
   lintPredicates(project, parsedPredicates.predicates, report);
   lintRuntime.world = world;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useWorkbench, type MobilePanel } from "@/lib/state/workbench";
-import { CodePanel, ConsolePanel, ExplorerPanel, PreviewPanel, ProblemsPanel } from "./panels";
+import { AdvancementsPanel, CodePanel, ConsolePanel, ExplorerPanel, PreviewPanel, ProblemsPanel } from "./panels";
 import { TimelinePanel } from "./TimelinePanel";
 import styles from "./editor.module.css";
 
@@ -12,6 +12,7 @@ const TABS: Array<{ id: MobilePanel; label: string }> = [
   { id: "console", label: "Console" },
   { id: "problems", label: "Problems" },
   { id: "timeline", label: "Timeline" },
+  { id: "advancements", label: "Advancements" },
 ];
 
 export function MobileWorkspace() {
@@ -43,6 +44,7 @@ export function MobileWorkspace() {
         {panel === "console" && <ConsolePanel />}
         {panel === "problems" && <ProblemsPanel />}
         {panel === "timeline" && <TimelinePanel />}
+        {panel === "advancements" && <AdvancementsPanel />}
       </div>
     </div>
   );

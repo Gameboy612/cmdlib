@@ -29,6 +29,7 @@ import {
   StatusEffect,
 } from "./player";
 import type { PredicateDefinition } from "./predicates";
+import type { AdvancementDefinition } from "./advancements";
 
 export interface Objective {
   name: string;
@@ -142,6 +143,10 @@ export class World {
   functionTags = new Map<string, FunctionTag>();
   /** Datapack predicates, keyed by resource location. */
   predicates = new Map<string, PredicateDefinition>();
+  /** Datapack advancements, keyed by resource location. */
+  advancements = new Map<string, AdvancementDefinition>();
+  /** Completed advancements per score holder (player username). */
+  advancementProgress = new Map<string, Set<string>>();
   blocks = new Map<string, string>();
   logs: WorldLogEntry[] = [];
   titles: TitleState = {
@@ -632,6 +637,53 @@ export class World {
 
   predicateIds(): string[] {
     return [...this.predicates.keys()];
+  }
+
+  /* ----------------------------- advancements ------------------------- */
+
+  setAdvancements(
+    advancements:
+      | Iterable<AdvancementDefinition>
+      | Map<string, AdvancementDefinition>,
+  ): void {
+    this.advancements.clear();
+    const values =
+      advancements instanceof Map ? advancements.values() : advancements;
+    for (const definition of values) {
+      this.advancements.set(definition.id, definition);
+    }
+  }
+
+  getAdvancement(id: string): AdvancementDefinition | undefined {
+    return this.advancements.get(id);
+  }
+
+  isAdvancementGranted(holder: string, id: string): boolean {
+    return this.advancementProgress.get(holder)?.has(id) ?? false;
+  }
+
+  grantAdvancement(holder: string, id: string): boolean {
+    if (!this.advancements.has(id)) return false;
+    let completed = this.advancementProgress.get(holder);
+    if (!completed) {
+      completed = new Set();
+      this.advancementProgress.set(holder, completed);
+    }
+    if (completed.has(id)) return false;
+    completed.add(id);
+    this.touch();
+    return true;
+  }
+
+  revokeAdvancement(holder: string, id: string): boolean {
+    const completed = this.advancementProgress.get(holder);
+    if (!completed?.delete(id)) return false;
+    this.touch();
+    return true;
+  }
+
+  advancementProgressFor(holder: string): ReadonlySet<string> {
+    return this.advancementProgress.get(holder) ?? new Set();
   }
 
   /* ------------------------------ schedule ---------------------------- */

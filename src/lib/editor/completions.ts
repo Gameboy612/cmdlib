@@ -34,6 +34,7 @@ export interface CompletionIndex {
   functions: Array<{ id: string; path: string; hasMacros: boolean }>;
   tags: Array<{ id: string; values: string[] }>;
   objectives: string[];
+  advancements: string[];
   /** Trigger objectives currently enabled for the default player. */
   enabledTriggers: string[];
   storages: string[];
@@ -74,6 +75,7 @@ export function buildCompletionIndex(
     functions,
     tags,
     objectives,
+    advancements: world ? [...world.advancements.keys()] : [],
     enabledTriggers,
     storages,
     holders,
@@ -190,6 +192,27 @@ function commandArgumentCompletion(
       return summonCompletion(arg, words, index);
     case "tag":
       return tagCompletion(arg, current, index);
+    case "advancement":
+      if (arg === 0) {
+        return [
+          keyword("grant", "Grant advancements."),
+          keyword("revoke", "Revoke advancements."),
+        ];
+      }
+      if (arg === 1) return targetOptions(index);
+      if (arg === 2) {
+        return ["only", "until", "from", "through", "everything"].map((mode) =>
+          keyword(mode, "Advancement selection mode."),
+        );
+      }
+      if (arg === 3) {
+        return index.advancements.map((id) => ({
+          label: id,
+          type: "variable",
+          detail: "advancement",
+        }));
+      }
+      return null;
     case "random":
       if (arg === 0) {
         return [

@@ -20,6 +20,8 @@ export interface Runtime {
   ): CommandResult;
   /** Advance the simulation by one tick (used by /tick step and sprint). */
   tick(): void;
+  grantAdvancement(holder: string, id: string): boolean;
+  revokeAdvancement(holder: string, id: string): boolean;
 }
 
 export interface CommandContext {

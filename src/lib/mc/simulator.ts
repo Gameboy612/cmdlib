@@ -7,6 +7,7 @@ import { executeCommandLine, makeContext, ReturnSignal } from "./commands/contex
 import type { CommandContext, CommandResult, Runtime } from "./commands/context";
 import { parseDatapack, type Project } from "./datapack";
 import { parsePredicateFiles } from "./predicates";
+import { parseAdvancementFiles } from "./advancements";
 import { getVersion, type VersionProfile } from "./version";
 import { macroValueToString } from "./commands/function";
 import { HANDLERS } from "./commands";
@@ -110,6 +111,7 @@ export class Simulator implements Runtime {
       this.project,
       ...this.contextProjects.filter((pack) => pack.id !== this.project.id),
     ];
+    const advancements = new Map<string, ReturnType<typeof parseAdvancementFiles>["advancements"] extends Map<string, infer T> ? T : never>();
     for (const source of sources) {
       const version = getVersion(source.versionId);
       const parsed = parseDatapack(source.files, version);
@@ -118,10 +120,14 @@ export class Simulator implements Runtime {
       for (const [id, predicate] of parsePredicateFiles(source.files).predicates) {
         predicates.set(id, predicate);
       }
+      for (const [id, advancement] of parseAdvancementFiles(source.files).advancements) {
+        advancements.set(id, advancement);
+      }
     }
     this.world.setFunctions([...functions.values()]);
     this.world.setFunctionTags([...tags.values()]);
     this.world.setPredicates(predicates);
+    this.world.setAdvancements(advancements);
   }
 
   /** Build a new world, load the pack, and run its load tags. */
@@ -250,6 +256,8 @@ export class Simulator implements Runtime {
       }
     }
 
+    this.evaluateAdvancements("tick");
+    this.evaluateAdvancements("inventory_changed");
     this.world.touch();
     return {
       tick,
@@ -258,6 +266,79 @@ export class Simulator implements Runtime {
       errors,
       ok: errors.length === 0,
     };
+  }
+
+  grantAdvancement(holder: string, id: string): boolean {
+    const definition = this.world.getAdvancement(id);
+    if (!definition) return false;
+    if (!this.world.grantAdvancement(holder, id)) return false;
+    if (definition.rewards.function) {
+      const player =
+        this.world.entities.find((entity) => entity.username === holder) ?? null;
+      const ctx = {
+        ...this.baseContext(true),
+        source: player,
+      };
+      try {
+        this.runFunction(definition.rewards.function, null, ctx);
+      } catch (error) {
+        this.world.log(
+          "error",
+          `Advancement reward '${definition.rewards.function}' failed: ${this.formatError(error)}`,
+        );
+      }
+    }
+    return true;
+  }
+
+  revokeAdvancement(holder: string, id: string): boolean {
+    return this.world.revokeAdvancement(holder, id);
+  }
+
+  private evaluateAdvancements(trigger: string): void {
+    for (const player of this.world.entities) {
+      if (!player.isPlayer || !player.username) continue;
+      const completed = this.world.advancementProgressFor(player.username);
+      for (const definition of this.world.advancements.values()) {
+        if (completed.has(definition.id)) continue;
+        const relevant = definition.criteria.filter(
+          (criterion) => criterion.trigger === trigger,
+        );
+        if (relevant.length === 0) continue;
+        if (relevant.length !== definition.criteria.length) continue;
+        if (!relevant.every((criterion) => this.advancementCriterionMet(criterion, player))) {
+          continue;
+        }
+        this.grantAdvancement(player.username, definition.id);
+      }
+    }
+  }
+
+  private advancementCriterionMet(
+    criterion: { trigger: string; conditions: Record<string, unknown> | null },
+    player: EntityData,
+  ): boolean {
+    if (criterion.trigger === "tick") return true;
+    if (criterion.trigger !== "inventory_changed") return false;
+    const items = criterion.conditions?.items;
+    if (!Array.isArray(items)) return false;
+    const inventory = this.world.playerInventory(player);
+    return items.some((entry) => {
+      if (!entry || typeof entry !== "object") return false;
+      const spec = entry as Record<string, unknown>;
+      const ids = typeof spec.items === "string"
+        ? [spec.items]
+        : Array.isArray(spec.items)
+          ? spec.items.filter((id): id is string => typeof id === "string")
+          : [];
+      return inventory.some((item) => {
+        if (ids.length > 0) {
+          const normalized = item.id.includes(":") ? item.id : `minecraft:${item.id}`;
+          if (!ids.some((id) => id === normalized || id === item.id)) return false;
+        }
+        return true;
+      });
+    });
   }
 
   private baseContext(quiet = false): CommandContext {

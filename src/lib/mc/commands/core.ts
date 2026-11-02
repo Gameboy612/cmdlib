@@ -461,3 +461,61 @@ export const randomHandler: Handler = (cursor, ctx) => {
   }
   return { result: value, success: true };
 };
+
+
+export const advancementHandler: Handler = (cursor, ctx) => {
+  const actionStart = cursor.mark();
+  const action = cursor.readWord();
+  if (action !== "grant" && action !== "revoke") {
+    cursor.error("Expected grant or revoke", actionStart, "advancement-action");
+    return { result: 0, success: false };
+  }
+  const targetsStart = cursor.mark();
+  const raw = cursor.readTargetsRaw().raw;
+  let entities: EntityData[] = [];
+  try {
+    entities = resolveEntityTargets(ctx.world, raw, {
+      source: ctx.source,
+      origin: ctx.pos,
+      lenient: ctx.lint,
+    }).filter((entity) => entity.isPlayer);
+  } catch (error) {
+    if (error instanceof SelectorError) cursor.error(error.message, targetsStart, "selector");
+    throw error;
+  }
+  const modeStart = cursor.mark();
+  const mode = cursor.readWord();
+  if (!["only", "until", "from", "through", "everything"].includes(mode)) {
+    cursor.error(
+      "Expected only, until, from, through or everything",
+      modeStart,
+      "advancement-mode",
+    );
+  }
+  const ids: string[] = [];
+  if (mode === "everything") {
+    ids.push(...ctx.world.advancements.keys());
+  } else {
+    const idStart = cursor.mark();
+    const id = cursor.readResourceLocation();
+    if (ctx.lint && !ctx.world.getAdvancement(id)) {
+      cursor.error(`Unknown advancement '${id}'`, idStart, "unknown-advancement");
+    }
+    ids.push(id);
+  }
+  if (!ctx.lint) {
+    for (const entity of entities) {
+      const holder = entity.username ?? entity.uuid;
+      for (const id of ids) {
+        if (action === "grant") ctx.runtime.grantAdvancement(holder, id);
+        else ctx.runtime.revokeAdvancement(holder, id);
+      }
+    }
+  }
+  feedback(
+    ctx,
+    "success",
+    `${action === "grant" ? "Granted" : "Revoked"} ${ids.length} advancement${ids.length === 1 ? "" : "s"}`,
+  );
+  return { result: ids.length * entities.length, success: true };
+};
