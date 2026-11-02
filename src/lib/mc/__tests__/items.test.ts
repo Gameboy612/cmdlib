@@ -165,3 +165,20 @@ describe("clear item predicates", () => {
     expect(sim.world.playerInventory(sim.world.player()!)).toHaveLength(0);
   });
 });
+
+describe("written book components", () => {
+  it("exposes pages[0].raw", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    sim.runCommand(
+      'give @s written_book[written_book_content={pages:[{raw:"page one"}],title:{raw:"Title"},author:"Dev",generation:0}] 1',
+    );
+    const outcome = sim.runCommand(
+      'data get entity @s SelectedItem.components."minecraft:written_book_content".pages[0].raw',
+    );
+    expect(outcome.ok).toBe(true);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("page one")),
+    ).toBe(true);
+  });
+});

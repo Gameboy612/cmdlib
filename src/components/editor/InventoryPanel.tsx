@@ -5,7 +5,8 @@ import { useSimRevision, useWorkbench } from "@/lib/state/workbench";
 import type { InventoryItem } from "@/lib/mc/player";
 import { formatSlot, itemComponentSummary } from "@/lib/mc/items";
 import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/components/ui/ContextMenu";
-import { Tag } from "@/lib/mc/nbt";
+import { isCompound, Tag } from "@/lib/mc/nbt";
+import { plainText } from "@/lib/mc/text";
 import { NbtTree } from "./NbtTree";
 import styles from "./inventory.module.css";
 
@@ -90,7 +91,14 @@ export function InventoryPanel() {
             if (component?.type === "compound") {
               const pageTag = component.value.pages;
               if (pageTag?.type === "list") {
-                pages = pageTag.value.map((page) => (page.type === "string" ? page.value : ""));
+                pages = pageTag.value.map((page) => {
+                  if (page.type === "string") return page.value;
+                  if (isCompound(page)) {
+                    const raw = page.value.raw;
+                    if (raw) return plainText(raw);
+                  }
+                  return "";
+                });
               }
             }
             setPageText(pages[0] ?? "");
@@ -157,7 +165,10 @@ export function InventoryPanel() {
       ? "minecraft:writable_book_content"
       : "minecraft:written_book_content";
     next.components![key] = Tag.compound({
-      pages: Tag.list([Tag.string(pageText)], "string"),
+      pages: Tag.list(
+        [Tag.compound({ raw: Tag.string(pageText) })],
+        "compound",
+      ),
     });
     world.setItemAt(player, book.slot, next);
     world.touch();
@@ -180,7 +191,10 @@ export function InventoryPanel() {
     };
     delete next.components!["minecraft:writable_book_content"];
     next.components!["minecraft:written_book_content"] = Tag.compound({
-      pages: Tag.list([Tag.string(pageText)], "string"),
+      pages: Tag.list(
+        [Tag.compound({ raw: Tag.string(pageText) })],
+        "compound",
+      ),
       title: Tag.compound({ raw: Tag.string(title) }),
       author: Tag.string(author),
       generation: Tag.int(0),
