@@ -115,7 +115,7 @@ No external image generation service, no Minecraft textures, no stock photos.
   layout persistence, autocomplete, mobile run button.
 - Reduced motion: the live sequence is manual, title labels do not collide,
   and reveal animations are disabled.
-- Engine: 159 unit tests across NBT, paths, text, runtime, lint and completion.
+- Engine: 162 unit tests across NBT, paths, text, runtime, lint and completion.
 
 ## 12. Known limits / next acts
 

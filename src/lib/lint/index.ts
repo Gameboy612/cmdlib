@@ -2,6 +2,7 @@ import { Project, parseDatapack, collectObjectiveIds, collectStorageIds } from "
 import { VersionProfile, getVersion } from "../mc/version";
 import { World } from "../mc/world";
 import { parseAdvancementFiles, type AdvancementDefinition } from "../mc/advancements";
+import { parseItemModifierFiles, type ItemModifierDefinition } from "../mc/item_modifiers";
 import { createEntity, entityPos } from "../mc/entities";
 import type { EntityData } from "../mc/entities";
 import {
@@ -178,8 +179,33 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
   world.setFunctionTags([...sharedTags.values()]);
   world.setPredicates(sharedPredicates);
   world.setAdvancements(sharedAdvancements);
+  const parsedModifiers = parseItemModifierFiles(project.files);
+  const sharedModifiers = new Map<string, ItemModifierDefinition>(
+    parsedModifiers.modifiers,
+  );
+  for (const source of contextSources) {
+    for (const [id, modifier] of parseItemModifierFiles(source).modifiers) {
+      sharedModifiers.set(id, modifier);
+    }
+  }
+  world.setItemModifiers(sharedModifiers);
   for (const error of parsedPredicates.errors) {
     reportPredicateFileIssue(project, error.path, error.message, error.code, "error", report);
+  }
+  for (const error of parsedModifiers.errors) {
+    const content = project.files[error.path] ?? "";
+    report({
+      path: error.path,
+      severity: "error",
+      code: "invalid-item-modifier",
+      message: error.message,
+      line: 1,
+      column: 1,
+      endLine: 1,
+      endColumn: Math.max(1, content.split(/\r?\n/)[0]?.length ?? 1),
+      from: 0,
+      to: Math.max(1, content.length),
+    });
   }
   for (const error of parsedAdvancements.errors) {
     const content = project.files[error.path] ?? "";

@@ -24,6 +24,7 @@ import {
 import type { VersionProfile } from "../mc/version";
 import type { World } from "../mc/world";
 import { entityInfo } from "../mc/data";
+import { slotList } from "../mc/items";
 import { parseSnbt } from "../mc/snbt";
 import { isCompound, NbtTag, stringifySnbt } from "../mc/nbt";
 import { getPathValues, parseNbtPath } from "../mc/nbtPath";
@@ -192,6 +193,20 @@ function commandArgumentCompletion(
       return summonCompletion(arg, words, index);
     case "tag":
       return tagCompletion(arg, current, index);
+    case "damage":
+      if (arg === 0) return targetOptions(index);
+      return null;
+    case "item":
+      if (arg === 0) {
+        return [keyword("replace", "Replace a slot's item."), keyword("modify", "Apply an item modifier.")];
+      }
+      if (arg === 1) return [keyword("entity", "Target an entity's slots.")];
+      if (arg === 2) return targetOptions(index);
+      if (arg === 3) {
+        return slotList().map((slot) => ({ label: slot, type: "variable", detail: "slot" }));
+      }
+      if (arg === 4 && words[1] === "replace") return [keyword("with", "The item to place.")];
+      return null;
     case "advancement":
       if (arg === 0) {
         return [

@@ -19,6 +19,7 @@ import {
   StoragePanel,
 } from "./panels";
 import { TimelinePanel } from "./TimelinePanel";
+import { InventoryPanel } from "./InventoryPanel";
 import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
 
@@ -29,6 +30,7 @@ const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> =
   console: () => <ConsolePanel />,
   timeline: () => <TimelinePanel />,
   advancements: () => <AdvancementsPanel />,
+  inventory: () => <InventoryPanel />,
   scoreboard: () => <ScoreboardPanel />,
   storage: () => <StoragePanel />,
   entities: () => <EntitiesPanel />,
@@ -43,6 +45,7 @@ const PANEL_META: Record<string, { title: string; component: string }> = {
   console: { title: "Console", component: "console" },
   timeline: { title: "Timeline", component: "timeline" },
   advancements: { title: "Advancements", component: "advancements" },
+  inventory: { title: "Inventory", component: "inventory" },
   scoreboard: { title: "Scores", component: "scoreboard" },
   storage: { title: "Storage", component: "storage" },
   entities: { title: "Entities", component: "entities" },
@@ -237,6 +240,13 @@ function buildDefaultLayout(api: DockviewApi): void {
       component: "advancements",
       title: "Advancements",
       position: { referencePanel: "timeline", direction: "within" },
+      inactive: true,
+    });
+    api.addPanel({
+      id: "inventory",
+      component: "inventory",
+      title: "Inventory",
+      position: { referencePanel: "advancements", direction: "within" },
       inactive: true,
     });
   }

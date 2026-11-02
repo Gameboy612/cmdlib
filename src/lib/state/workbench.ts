@@ -24,7 +24,7 @@ const LEGACY_PROJECT_KEY = "cmdlib:project:v2";
 const LAYOUT_KEY = "cmdlib:layout:v2";
 const HISTORY_KEY = "cmdlib:history:v1";
 
-export type MobilePanel = "editor" | "preview" | "console" | "explorer" | "problems" | "timeline" | "advancements";
+export type MobilePanel = "editor" | "preview" | "console" | "explorer" | "problems" | "timeline" | "advancements" | "inventory";
 
 export interface ExplorerCreateRequest {
   kind: "file" | "function" | "tag" | "predicate";

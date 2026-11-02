@@ -1,7 +1,7 @@
 import { World } from "./world";
 import type { ScheduledFunction } from "./world";
 import type { EntityData } from "./entities";
-import type { NbtTag } from "./nbt";
+import { isCompound, isList, isNumeric, type NbtTag } from "./nbt";
 import { CommandError, Cursor } from "./cursor";
 import { executeCommandLine, makeContext, ReturnSignal } from "./commands/context";
 import type { CommandContext, CommandResult, Runtime } from "./commands/context";
@@ -344,9 +344,45 @@ export class Simulator implements Runtime {
           const normalized = item.id.includes(":") ? item.id : `minecraft:${item.id}`;
           if (!ids.some((id) => id === normalized || id === item.id)) return false;
         }
+        const components = spec.components;
+        if (components && typeof components === "object" && !Array.isArray(components)) {
+          for (const [rawKey, expected] of Object.entries(components as Record<string, unknown>)) {
+            const key = rawKey.includes(":") ? rawKey : `minecraft:${rawKey}`;
+            const actual = item.components?.[key];
+            if (actual === undefined) return false;
+            if (!this.componentMatches(actual, expected)) return false;
+          }
+        }
         return true;
       });
     });
+  }
+
+  private componentMatches(tag: NbtTag, expected: unknown): boolean {
+    if (typeof expected === "boolean") {
+      return isNumeric(tag) && Number(tag.value) === (expected ? 1 : 0);
+    }
+    if (typeof expected === "number") {
+      return isNumeric(tag) && Number(tag.value) === expected;
+    }
+    if (typeof expected === "string") {
+      return tag.type === "string" && tag.value === expected;
+    }
+    if (Array.isArray(expected)) {
+      return (
+        isList(tag) &&
+        tag.value.length === expected.length &&
+        tag.value.every((item, index) => this.componentMatches(item, expected[index]))
+      );
+    }
+    if (expected && typeof expected === "object") {
+      if (!isCompound(tag)) return false;
+      return Object.entries(expected as Record<string, unknown>).every(
+        ([key, value]) =>
+          tag.value[key] !== undefined && this.componentMatches(tag.value[key], value),
+      );
+    }
+    return false;
   }
 
   private baseContext(quiet = false): CommandContext {

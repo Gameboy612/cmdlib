@@ -530,6 +530,10 @@ export class World {
     return true;
   }
 
+  playerSelectedSlot(target: EntityData | string | null = null): number {
+    return this.playerState(target)?.selectedSlot ?? 0;
+  }
+
   playerHealth(target: EntityData | string | null = null): number {
     const entity = typeof target === "string"
       ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
@@ -565,6 +569,7 @@ export class World {
     id?: string,
     nbt?: CompoundTag,
     maxCount?: number,
+    components?: Record<string, NbtTag>,
   ): number {
     const state = this.playerState(target);
     if (!state || state.inventory.length === 0) return 0;
@@ -574,13 +579,15 @@ export class World {
       return removed;
     }
     const nbtKey = nbt === undefined ? undefined : itemNbtKey(nbt);
+    const componentKey = components === undefined ? undefined : itemComponentKey(components);
     let budget = maxCount === undefined ? Infinity : Math.max(0, Math.trunc(maxCount));
     let removed = 0;
     const remaining: InventoryItem[] = [];
     for (const item of state.inventory) {
       const matches =
         item.id === id &&
-        (nbtKey === undefined || itemNbtKey(item.nbt) === nbtKey);
+        (nbtKey === undefined || itemNbtKey(item.nbt) === nbtKey) &&
+        (componentKey === undefined || itemComponentKey(item.components) === componentKey);
       if (!matches || budget <= 0) {
         remaining.push(item);
         continue;

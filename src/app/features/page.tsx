@@ -26,6 +26,7 @@ const PACKS = [
   ["Non-function tags", "Item, block, entity type, fluid and game event tags."],
   ["Predicates", "Datapack predicates with references, cycles and common condition types."],
   ["Advancements", "Criteria, display data, rewards and a dockable Advancements panel. Tick and inventory triggers run rewards automatically."],
+  ["Items & components", "Item IDs, 1.20.5+ components, stack counts, player slots, ender chests and item modifiers, with a dockable Inventory panel."],
   ["Imports", "Local ZIP projects, GitHub repositories, nested packs and multi-pack archives."],
   ["Large archives", "Up to 50,000 datapack files or 128 MB expanded; non-datapack assets are skipped before decompression."],
   ["Explorer scaling", "Folders page 300 rows at a time so huge packs remain responsive."],
@@ -54,6 +55,8 @@ const COMMANDS = [
   ["/random", "value, roll and reset with integer ranges and optional sequences."],
   ["/tick", "freeze, unfreeze, rate, step, sprint and query, integrated with the timeline."],
   ["/advancement", "grant and revoke with only/everything modes and criteria completion."],
+  ["/item", "replace and modify items in mainhand, offhand, armor, hotbar, inventory and enderchest slots."],
+  ["/damage", "reduce player or entity health."],
 ];
 
 const EXECUTE = [
@@ -86,7 +89,7 @@ const TOOLS = [
 const NOT_SIMULATED = [
   "datapack", "help", "time", "weather", "gamerule", "fill", "clone",
   "particle", "playsound", "bossbar", "xp", "attribute",
-  "item", "loot", "compute", "posteffect", "dialog", "version",
+  "loot", "compute", "posteffect", "dialog", "version",
   "list", "seed",
 ];
 
@@ -132,9 +135,9 @@ export default function FeaturesPage() {
           </p>
           <div className={styles.heroMeta}>
             <span><b>Versions</b> 1.13 – 26.3</span>
-            <span><b>Runtime commands</b> 25</span>
+            <span><b>Runtime commands</b> 28</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 159 passing</span>
+            <span><b>Tests</b> 162 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

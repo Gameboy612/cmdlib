@@ -205,6 +205,7 @@ export const clearHandler: Handler = (cursor, ctx) => {
   let raw = "@s";
   let itemId: string | undefined;
   let itemNbt: CompoundTag | undefined;
+  let itemComponents: Record<string, NbtTag> | undefined;
   let maxCount: number | undefined;
 
   if (!cursor.done()) {
@@ -214,7 +215,11 @@ export const clearHandler: Handler = (cursor, ctx) => {
     }
   }
   if (!cursor.done()) {
-    itemId = cursor.readResourceLocation();
+    itemId = normalizeItemId(cursor.readResourceLocation());
+    cursor.skip();
+    if (cursor.peek() === "[") {
+      itemComponents = parseItemComponents(cursor.readBalanced());
+    }
     itemNbt = readOptionalItemNbt(cursor);
   }
   if (!cursor.done()) {
@@ -239,6 +244,7 @@ export const clearHandler: Handler = (cursor, ctx) => {
         itemId,
         itemNbt,
         maxCount,
+        itemComponents,
       );
     }
   }

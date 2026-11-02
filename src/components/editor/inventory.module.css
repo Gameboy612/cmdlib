@@ -1,0 +1,28 @@
+.panel { height: 100%; min-height: 0; display: flex; flex-direction: column; background: #0b0e11; color: var(--text); overflow: hidden; }
+.bar { flex: none; height: 30px; display: flex; align-items: center; gap: 12px; padding: 0 10px; border-bottom: 1px solid #1e242b; background: #0d1115; }
+.title { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.healthLabel { font-family: var(--mono); font-size: 8px; color: #e7a0a0; }
+.barRight { margin-left: auto; font-family: var(--mono); font-size: 7.5px; color: var(--faint); }
+.healthTrack { flex: none; height: 2px; background: #211417; }
+.healthTrack span { display: block; height: 100%; background: #c95e5e; transition: width 120ms linear; }
+.body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; scrollbar-width: thin; scrollbar-color: #2b333c transparent; }
+.section { margin-bottom: 10px; }
+.sectionHead { display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--faint); font-family: var(--mono); font-size: 7px; letter-spacing: 0.08em; text-transform: uppercase; }
+.sectionHead span:last-child { text-transform: none; letter-spacing: 0; }
+.heldRow { display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap; }
+.heldSlot { display: flex; flex-direction: column; gap: 3px; }
+.slotLabel { color: var(--faint); font-family: var(--mono); font-size: 6.5px; text-transform: uppercase; }
+.armorRow { display: flex; gap: 4px; flex-wrap: wrap; }
+.itemBox { position: relative; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #242c34; border-radius: 3px; background: #0d1217; color: #4d5862; font-family: var(--mono); font-size: 8px; }
+.itemFilled { color: var(--text-dim); border-color: #35404a; background: linear-gradient(180deg, #171d23, #0e1318); }
+.itemActive { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(255, 122, 69, 0.2); }
+.itemGlyph { pointer-events: none; }
+.itemCount { position: absolute; right: 2px; bottom: 1px; color: var(--text); font-family: var(--mono); font-size: 7px; font-weight: 500; }
+.itemComponentDot { position: absolute; left: 3px; top: 3px; width: 3px; height: 3px; border-radius: 50%; background: var(--gold); opacity: 0.8; }
+.hotbar { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; margin-bottom: 9px; }
+.inventoryGrid, .enderGrid { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
+.hotbar .itemBox, .inventoryGrid .itemBox, .enderGrid .itemBox { width: 100%; height: auto; aspect-ratio: 1; }
+.enderGrid { opacity: 0.85; }
+@media (max-width: 700px) {
+  .hotbar, .inventoryGrid, .enderGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
