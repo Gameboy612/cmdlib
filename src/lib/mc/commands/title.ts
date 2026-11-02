@@ -67,7 +67,7 @@ export const titleHandler: Handler = (cursor, ctx) => {
   if (!ctx.lint) {
     ctx.world.setTitle(action as "title" | "subtitle" | "actionbar", component);
   }
-  const preview = ctx.world.plain(component);
+  const preview = ctx.world.plain(component, ctx.source);
   feedback(
     ctx,
     "success",

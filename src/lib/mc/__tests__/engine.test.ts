@@ -696,3 +696,15 @@ describe("NBT text component interpret", () => {
     expect(raw.map((run) => run.text).join("")).toContain("Hello");
   });
 });
+
+describe("score text components with selectors", () => {
+  it("resolves @s against the command source", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add scoreTest dummy");
+    sim.runCommand("scoreboard players set @s scoreTest 42");
+    sim.runCommand('tellraw @a {score:{name:"@s",objective:"scoreTest"}}');
+    expect(sim.world.logs.some((entry) => entry.text === "42")).toBe(true);
+  });
+});

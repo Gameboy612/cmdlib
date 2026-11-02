@@ -279,7 +279,7 @@ export const tellrawHandler: Handler = (cursor, ctx) => {
     entities = [];
   }
   if (entities.length > 0) {
-    const text = ctx.world.plain(component.tag);
+    const text = ctx.world.plain(component.tag, ctx.source);
     ctx.world.chat(component.tag, text);
   }
   void targetsStart;

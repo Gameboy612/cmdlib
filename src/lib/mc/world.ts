@@ -1170,8 +1170,8 @@ export class World {
 
   /* ------------------------------- text ------------------------------- */
 
-  plain(component: NbtTag): string {
-    return plainComponentText(this, component);
+  plain(component: NbtTag, source: EntityData | null = null): string {
+    return plainText(component, this.textContext(source));
   }
 
   textContext(source: EntityData | null, origin?: Vec3): TextRenderContext {
@@ -1287,10 +1287,6 @@ export class World {
   describeVersion(): string {
     return this.version.id;
   }
-}
-
-function plainComponentText(world: World, component: NbtTag): string {
-  return plainText(component, world.textContext(null));
 }
 
 export function makeWorld(versionId: string, playerPos?: Vec3): World {
