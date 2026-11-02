@@ -49,6 +49,7 @@ export function InventoryPanel() {
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [book, setBook] = useState<{ slot: string; item: InventoryItem; writable: boolean } | null>(null);
   const [pageText, setPageText] = useState("");
+  const [bookTitle, setBookTitle] = useState("");
   const health = world.playerHealth(player);
   const maxHealth = 20;
   const selected = world.playerSelectedSlot(player);
@@ -91,6 +92,14 @@ export function InventoryPanel() {
               }
             }
             setPageText(pages[0] ?? "");
+            setBookTitle(
+              !writable &&
+              item.components?.["minecraft:written_book_content"]?.type === "compound" &&
+              item.components["minecraft:written_book_content"].value.title?.type === "compound" &&
+              item.components["minecraft:written_book_content"].value.title.value.raw?.type === "string"
+                ? item.components["minecraft:written_book_content"].value.title.value.raw.value
+                : "",
+            );
             setBook({ slot, item, writable });
             return;
           }
@@ -138,6 +147,32 @@ export function InventoryPanel() {
     world.setItemAt(player, book.slot, next);
     world.touch();
     useWorkbench.getState().showToast("Book updated", "success");
+    setBook(null);
+  };
+
+  const signBook = () => {
+    if (!book || !book.writable) return;
+    const title = bookTitle.trim();
+    if (!title) {
+      useWorkbench.getState().showToast("A book title is required", "error");
+      return;
+    }
+    const author = player?.username ?? "Dev";
+    const next: InventoryItem = {
+      ...book.item,
+      id: "minecraft:written_book",
+      components: { ...(book.item.components ?? {}) },
+    };
+    delete next.components!["minecraft:writable_book_content"];
+    next.components!["minecraft:written_book_content"] = Tag.compound({
+      pages: Tag.list([Tag.string(pageText)], "string"),
+      title: Tag.compound({ raw: Tag.string(title) }),
+      author: Tag.string(author),
+      generation: Tag.int(0),
+    });
+    world.setItemAt(player, book.slot, next);
+    world.touch();
+    useWorkbench.getState().showToast(`Signed "${title}"`, "success");
     setBook(null);
   };
 
@@ -222,6 +257,18 @@ export function InventoryPanel() {
               <span>{book.writable ? "Writable book" : "Written book"}</span>
               <button type="button" onClick={() => setBook(null)} aria-label="Close book">×</button>
             </div>
+            {book.writable ? (
+              <input
+                className={styles.bookTitle}
+                value={bookTitle}
+                onChange={(event) => setBookTitle(event.target.value)}
+                placeholder="Book title"
+                aria-label="Book title"
+                maxLength={32}
+              />
+            ) : (
+              bookTitle && <div className={styles.bookSignedTitle}>{bookTitle}</div>
+            )}
             <textarea
               value={pageText}
               readOnly={!book.writable}
@@ -231,7 +278,12 @@ export function InventoryPanel() {
             />
             <div className={styles.bookActions}>
               <span>{book.writable ? "Editing page 1" : "Page 1"}</span>
-              {book.writable && <button type="button" onClick={saveBook}>Save page</button>}
+              {book.writable && (
+                <>
+                  <button type="button" onClick={saveBook}>Save page</button>
+                  <button type="button" onClick={signBook} disabled={!bookTitle.trim()}>Sign book</button>
+                </>
+              )}
             </div>
           </div>
         </div>

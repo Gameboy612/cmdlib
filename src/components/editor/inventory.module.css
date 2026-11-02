@@ -59,6 +59,20 @@
   text-transform: uppercase;
 }
 .bookHead button { color: #b9a680; font-size: 14px; }
+.bookTitle {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #d8c7a4;
+  outline: 0;
+  padding: 10px 14px;
+  background: #efe3c6;
+  color: #33271a;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 600;
+}
+.bookSignedTitle { padding: 9px 14px 0; color: #5a4732; font-family: Georgia, serif; font-size: 14px; font-weight: 600; }
 .bookModal textarea {
   display: block;
   width: 100%;
