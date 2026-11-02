@@ -10,10 +10,9 @@ import { plainText } from "@/lib/mc/text";
 import { NbtTree } from "./NbtTree";
 import styles from "./inventory.module.css";
 
-function cleanBookPage(text: string): string {
-  // Book pages should not keep an editor newline at the very end. Internal
-  // line breaks are preserved.
-  return text.replace(/(?:\r?\n)+$/, "");
+function bookPageForStorage(text: string): string {
+  // Minecraft book pages retain a trailing newline in their raw component.
+  return text.endsWith("\n") ? text : `${text}\n`;
 }
 
 function ItemBox({
@@ -101,7 +100,7 @@ export function InventoryPanel() {
                   if (page.type === "string") return page.value;
                   if (isCompound(page)) {
                     const raw = page.value.raw;
-                    if (raw) return plainText(raw);
+                    if (raw) return plainText(raw).replace(/\n+$/, "");
                   }
                   return "";
                 });
@@ -172,7 +171,7 @@ export function InventoryPanel() {
       : "minecraft:written_book_content";
     next.components![key] = Tag.compound({
       pages: Tag.list(
-        [Tag.compound({ raw: Tag.string(cleanBookPage(pageText)) })],
+        [Tag.compound({ raw: Tag.string(bookPageForStorage(pageText)) })],
         "compound",
       ),
     });
@@ -198,7 +197,7 @@ export function InventoryPanel() {
     delete next.components!["minecraft:writable_book_content"];
     next.components!["minecraft:written_book_content"] = Tag.compound({
       pages: Tag.list(
-        [Tag.compound({ raw: Tag.string(cleanBookPage(pageText)) })],
+        [Tag.compound({ raw: Tag.string(bookPageForStorage(pageText)) })],
         "compound",
       ),
       title: Tag.compound({ raw: Tag.string(title) }),
