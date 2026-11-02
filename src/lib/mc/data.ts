@@ -430,7 +430,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
       align: { name: "align", summary: "Round the command position to the block grid.", category: "server", supported: true, args: [arg("axes", "enum", "Any combination of x, y, z.", false)] },
       rotated: { name: "rotated", summary: "Set the command rotation.", category: "server", supported: true, args: [arg("rotation", "rotation")] },
       facing: { name: "facing", summary: "Face a position or entity.", category: "server", supported: true, args: [arg("target", "coordinates")] },
-      in: { name: "in", summary: "Switch dimension.", category: "server", supported: false, args: [arg("dimension", "word")] },
+      in: { name: "in", summary: "Switch dimension.", category: "server", supported: true, args: [arg("dimension", "word")] },
       if: {
         name: "if",
         summary: "Run only if a condition is true.",
@@ -565,7 +565,7 @@ export const COMMANDS: Record<string, CommandSpec> = {
   time: { name: "time", summary: "Read or set world time.", category: "world", supported: false, args: [arg("action", "enum")] },
   weather: { name: "weather", summary: "Set the weather.", category: "world", supported: false },
   gamerule: { name: "gamerule", summary: "Read or set a game rule.", category: "world", supported: false },
-  setblock: { name: "setblock", summary: "Place a block.", category: "world", supported: false },
+  setblock: { name: "setblock", summary: "Place a block.", category: "world", supported: true },
   fill: { name: "fill", summary: "Fill a region with blocks.", category: "world", supported: false },
   clone: { name: "clone", summary: "Copy blocks.", category: "world", supported: false },
   particle: { name: "particle", summary: "Spawn particles.", category: "world", supported: false },
