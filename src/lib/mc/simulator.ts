@@ -392,12 +392,9 @@ export class Simulator implements Runtime {
             throw error;
           }
           // A failed command in a function does not abort the remaining
-          // lines in vanilla. Log it and keep going, like the real command
-          // dispatcher.
-          this.world.log(
-            "error",
-            `${error.message} (function ${id}, line ${i + 1})`,
-          );
+          // lines in vanilla. Function command failures are also silent in
+          // game chat; explicit diagnostics such as missing objectives are
+          // emitted by the command itself. Keep going without noisy errors.
           continue;
         }
         throw error;

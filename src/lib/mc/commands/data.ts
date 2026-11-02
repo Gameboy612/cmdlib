@@ -104,10 +104,18 @@ function get(cursor: Cursor, ctx: CommandContext): CommandResult {
     });
   }
 
+  const tagResult = (tag: NbtTag): number => {
+    if (isNumericTag(tag)) return tag.value;
+    if (isString(tag)) return tag.value.length;
+    if (isList(tag)) return tag.value.length;
+    if (tag.type === "byteArray" || tag.type === "intArray" || tag.type === "longArray") {
+      return tag.value.length;
+    }
+    if (isCompound(tag)) return Object.keys(tag.value).length;
+    return 1;
+  };
   const result =
-    values.length === 1 && isNumericTag(values[0])
-      ? values[0].value
-      : values.length;
+    values.length === 1 ? tagResult(values[0]) : values.length;
 
   const label =
     source.kind === "storage"

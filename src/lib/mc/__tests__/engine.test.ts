@@ -526,3 +526,41 @@ describe("homogeneous display matrices", () => {
     expect(stringifySnbt(scale)).toBe("[0.5f, 0.5f, 0.5f]");
   });
 });
+
+describe("function command failure handling", () => {
+  it("continues without logging expected probe failures", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/probe.mcfunction"] = [
+      "data modify storage test:probe value set value [1f]d",
+      "say AFTER-PROBE",
+    ].join("\n");
+    const sim = new Simulator({ project });
+    sim.reset();
+    const outcome = sim.runCommand("function cmdlib:probe");
+    expect(outcome.ok).toBe(true);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("AFTER-PROBE")),
+    ).toBe(true);
+    expect(
+      sim.world.logs.some(
+        (entry) =>
+          entry.kind === "error" &&
+          entry.text.includes("Unexpected trailing input"),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("data get result values", () => {
+  it("returns list, string and compound lengths", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("data modify storage test:shape list set value [1,2,3]");
+    sim.runCommand('data modify storage test:shape text set value "hello"');
+    sim.runCommand("data modify storage test:shape obj set value {a:1,b:2}");
+    expect(sim.runCommand("data get storage test:shape list").result).toBe(3);
+    expect(sim.runCommand("data get storage test:shape text").result).toBe(5);
+    expect(sim.runCommand("data get storage test:shape obj").result).toBe(2);
+  });
+});
