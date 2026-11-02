@@ -1,4 +1,4 @@
-import { cloneTag, CompoundTag, stringifySnbt } from "./nbt";
+import { cloneTag, CompoundTag, NbtTag, stringifySnbt } from "./nbt";
 
 /**
  * Player and entity runtime state that is simulated but not rendered.
@@ -27,8 +27,12 @@ export interface InventoryItem {
   /** Normalised resource location, e.g. `minecraft:diamond`. */
   id: string;
   count: number;
-  /** Optional SNBT payload, used to keep differently-tagged stacks apart. */
+  /** Optional legacy SNBT payload. */
   nbt?: CompoundTag;
+  /** 1.20.5+ item components, keyed by namespaced component id. */
+  components?: Record<string, NbtTag>;
+  /** Inventory slot key when placed in a specific slot. */
+  slot?: string;
 }
 
 /** One active status effect. Durations are counted down by `Simulator.tick()`. */
@@ -45,6 +49,8 @@ export interface StatusEffect {
 export interface PlayerState {
   gameMode: GameMode;
   inventory: InventoryItem[];
+  enderchest: InventoryItem[];
+  selectedSlot: number;
   /** Objective names this holder may currently `/trigger`. */
   enabledTriggers: Set<string>;
   /** Entity UUID currently being spectated, if any. */
@@ -55,6 +61,8 @@ export function createPlayerState(gameMode: GameMode = "survival"): PlayerState 
   return {
     gameMode,
     inventory: [],
+    enderchest: [],
+    selectedSlot: 0,
     enabledTriggers: new Set(),
   };
 }
@@ -64,6 +72,15 @@ export function cloneInventoryItem(item: InventoryItem): InventoryItem {
     id: item.id,
     count: item.count,
     ...(item.nbt ? { nbt: cloneTag(item.nbt) as CompoundTag } : {}),
+    ...(item.components
+      ? {
+          components: (cloneTag({
+            type: "compound",
+            value: item.components,
+          }) as CompoundTag).value,
+        }
+      : {}),
+    ...(item.slot ? { slot: item.slot } : {}),
   };
 }
 
@@ -78,4 +95,10 @@ export function cloneStatusEffect(effect: StatusEffect): StatusEffect {
  */
 export function itemNbtKey(nbt?: CompoundTag): string {
   return nbt ? stringifySnbt(nbt, { typed: true, quoteKeys: true }) : "";
+}
+
+export function itemComponentKey(components?: Record<string, NbtTag>): string {
+  return components
+    ? stringifySnbt({ type: "compound", value: components }, { typed: true, quoteKeys: true })
+    : "";
 }

@@ -604,6 +604,14 @@ export const COMMANDS: Record<string, CommandSpec> = {
       arg("maxCount", "integer", "Maximum number of items to remove.", true),
     ],
   },
+  damage: {
+    name: "damage",
+    summary: "Damage entities and players.",
+    category: "player",
+    supported: true,
+    usage: "/damage <targets> <amount> [damageType]",
+    args: [arg("targets", "targets"), arg("amount", "number"), arg("damageType", "word", undefined, true)],
+  },
   effect: {
     name: "effect",
     summary: "Apply or remove status effects.",
@@ -664,7 +672,14 @@ export const COMMANDS: Record<string, CommandSpec> = {
     args: [arg("action", "enum"), arg("targets", "targets"), arg("mode", "enum"), arg("advancement", "word", undefined, true)],
   },
   attribute: { name: "attribute", summary: "Read or set attributes.", category: "player", supported: false },
-  item: { name: "item", summary: "Modify inventories.", category: "player", supported: false },
+  item: {
+    name: "item",
+    summary: "Replace or modify item slots.",
+    category: "player",
+    supported: true,
+    usage: "/item replace entity <targets> <slot> with <item> [count] | /item modify entity <targets> <slot> <modifier>",
+    args: [arg("action", "enum"), arg("source", "enum"), arg("targets", "targets"), arg("slot", "word")],
+  },
   loot: { name: "loot", summary: "Insert loot.", category: "player", supported: false },
   schedule: {
     name: "schedule",

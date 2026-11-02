@@ -6,9 +6,11 @@ import { titleHandler } from "./title";
 import { scheduleHandler } from "./schedule";
 import {
   clearHandler,
+  damageHandler,
   effectHandler,
   gamemodeHandler,
   giveHandler,
+  itemHandler,
   spectateHandler,
   triggerHandler,
 } from "./player";
@@ -57,8 +59,10 @@ export const HANDLERS: Record<string, CommandHandler> = {
   schedule: scheduleHandler,
   gamemode: gamemodeHandler,
   give: giveHandler,
+  item: itemHandler,
   spectate: spectateHandler,
   clear: clearHandler,
+  damage: damageHandler,
   effect: effectHandler,
   trigger: triggerHandler,
 };

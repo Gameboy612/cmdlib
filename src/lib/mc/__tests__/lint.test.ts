@@ -167,3 +167,19 @@ describe("shared pack context", () => {
     ).toBe(false);
   });
 });
+
+describe("dynamic macro commands", () => {
+  it("does not guess a command name from a placeholder line", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/run_text.mcfunction"] =
+      '# @api\n$$(text)\n';
+    const report = lintProject(project);
+    expect(
+      report.diagnostics.some(
+        (entry) =>
+          entry.path.endsWith("run_text.mcfunction") &&
+          entry.code === "unknown-command",
+      ),
+    ).toBe(false);
+  });
+});

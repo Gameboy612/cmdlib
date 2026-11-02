@@ -298,6 +298,7 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
       const isMacro = trimmed.startsWith("$");
 
       let prepared = trimmed;
+      let dynamicCommand = false;
       if (isMacro) {
         const macroBody = trimmed.slice(1);
         if (!version.macros) {
@@ -307,8 +308,14 @@ export function lintProject(project: Project, options: LintOptions = {}): LintRe
         if (bad) {
           reportAt(fn.path, report, lineStart, bad, "macro-syntax", "error");
         }
+        // When the command name itself is a macro (for example `$$(text)`),
+        // there is no static command to validate. A synthetic argument would
+        // otherwise produce a false unknown-command diagnostic.
+        dynamicCommand = macroBody.trimStart().startsWith("$(");
         prepared = macroBody.replace(/\$\(([^)]*)\)/g, "1");
       }
+
+      if (dynamicCommand) continue;
 
       const ctx = makeContext(world, lintRuntime, player, {
         quiet: true,

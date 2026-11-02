@@ -24,12 +24,20 @@ import {
   createPlayerState,
   GameMode,
   InventoryItem,
+  itemComponentKey,
   itemNbtKey,
   PlayerState,
   StatusEffect,
 } from "./player";
 import type { PredicateDefinition } from "./predicates";
+import {
+  HOTBAR_SIZE,
+  MAIN_INVENTORY_SIZE,
+  normalizeItemId,
+  resolveSlot,
+} from "./items";
 import type { AdvancementDefinition } from "./advancements";
+import type { ItemModifierDefinition } from "./item_modifiers";
 
 export interface Objective {
   name: string;
@@ -145,6 +153,8 @@ export class World {
   predicates = new Map<string, PredicateDefinition>();
   /** Datapack advancements, keyed by resource location. */
   advancements = new Map<string, AdvancementDefinition>();
+  /** Datapack item modifiers, keyed by resource location. */
+  itemModifiers = new Map<string, ItemModifierDefinition>();
   /** Completed advancements per score holder (player username). */
   advancementProgress = new Map<string, Set<string>>();
   blocks = new Map<string, string>();
@@ -444,23 +454,103 @@ export class World {
     id: string,
     count: number,
     nbt?: CompoundTag,
+    components?: Record<string, NbtTag>,
   ): InventoryItem {
     const state = this.ensurePlayerState(target);
+    const normalized = normalizeItemId(id);
     const key = itemNbtKey(nbt);
+    const componentKey = itemComponentKey(components);
     const existing = state.inventory.find(
-      (item) => item.id === id && itemNbtKey(item.nbt) === key,
+      (item) =>
+        item.id === normalized &&
+        itemNbtKey(item.nbt) === key &&
+        itemComponentKey(item.components) === componentKey,
     );
     if (existing) {
       existing.count += count;
       return existing;
     }
+    const used = new Set(state.inventory.map((item) => item.slot).filter(Boolean));
+    let slot: string | undefined;
+    for (let i = 0; i < HOTBAR_SIZE; i++) {
+      if (!used.has(`hotbar.${i}`)) {
+        slot = `hotbar.${i}`;
+        break;
+      }
+    }
+    if (!slot) {
+      for (let i = 0; i < MAIN_INVENTORY_SIZE; i++) {
+        if (!used.has(`inventory.${i}`)) {
+          slot = `inventory.${i}`;
+          break;
+        }
+      }
+    }
     const item: InventoryItem = {
-      id,
+      id: normalized,
       count,
       ...(nbt ? { nbt: JSON.parse(JSON.stringify(nbt)) as CompoundTag } : {}),
+      ...(components ? { components: JSON.parse(JSON.stringify(components)) } : {}),
+      ...(slot ? { slot } : {}),
     };
     state.inventory.push(item);
     return item;
+  }
+
+  getItemAt(target: EntityData | string | null, slot: string): InventoryItem | undefined {
+    const state = this.playerState(target);
+    if (!state) return undefined;
+    const resolved = resolveSlot(slot, state.selectedSlot);
+    if (!resolved) return undefined;
+    const collection = resolved.storage === "enderchest" ? state.enderchest : state.inventory;
+    const exact = collection.find((item) => item.slot === resolved.key);
+    if (exact) return exact;
+    if (resolved.key === `hotbar.${state.selectedSlot}`) {
+      return collection.find((item) => !item.slot) ?? collection[0];
+    }
+    return undefined;
+  }
+
+  setItemAt(
+    target: EntityData | string | null,
+    slot: string,
+    item: InventoryItem | null,
+  ): boolean {
+    if (!target) return false;
+    const state = this.ensurePlayerState(target);
+    const resolved = resolveSlot(slot, state.selectedSlot);
+    if (!resolved) return false;
+    const collection = resolved.storage === "enderchest" ? state.enderchest : state.inventory;
+    const index = collection.findIndex((entry) => entry.slot === resolved.key);
+    if (index >= 0) collection.splice(index, 1);
+    if (item) {
+      collection.push({ ...item, slot: resolved.key });
+    }
+    this.touch();
+    return true;
+  }
+
+  playerHealth(target: EntityData | string | null = null): number {
+    const entity = typeof target === "string"
+      ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
+      : target ?? this.player();
+    const health = entity?.nbt.value.Health;
+    return typeof health?.value === "number" ? Math.max(0, health.value) : 20;
+  }
+
+  damagePlayer(target: EntityData | string | null, amount: number): number {
+    const entity = typeof target === "string"
+      ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
+      : target ?? this.player();
+    if (!entity || amount <= 0) return this.playerHealth(entity ?? null);
+    const next = Math.max(0, this.playerHealth(entity) - amount);
+    entity.nbt.value.Health = Tag.float(next);
+    this.touch();
+    return next;
+  }
+
+  enderchestItems(target: EntityData | string | null): readonly InventoryItem[] {
+    return this.playerState(target)?.enderchest ?? [];
   }
 
   /**
@@ -684,6 +774,16 @@ export class World {
 
   advancementProgressFor(holder: string): ReadonlySet<string> {
     return this.advancementProgress.get(holder) ?? new Set();
+  }
+
+  setItemModifiers(modifiers: Iterable<ItemModifierDefinition> | Map<string, ItemModifierDefinition>): void {
+    this.itemModifiers.clear();
+    const values = modifiers instanceof Map ? modifiers.values() : modifiers;
+    for (const modifier of values) this.itemModifiers.set(modifier.id, modifier);
+  }
+
+  getItemModifier(id: string): ItemModifierDefinition | undefined {
+    return this.itemModifiers.get(id);
   }
 
   /* ------------------------------ schedule ---------------------------- */

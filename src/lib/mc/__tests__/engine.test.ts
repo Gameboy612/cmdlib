@@ -621,3 +621,19 @@ describe("/random", () => {
     expect(sim.runCommand("random roll 2..2").result).toBe(2);
   });
 });
+
+describe("dynamic macro command lines", () => {
+  it("executes the command supplied by the argument", () => {
+    const project = createDemoProject("26.3");
+    project.files["data/cmdlib/function/run_text.mcfunction"] = "$$(text)\n";
+    const sim = new Simulator({ project });
+    sim.reset();
+    const outcome = sim.runCommand(
+      'function cmdlib:run_text {text:"say MACRO-COMMAND"}',
+    );
+    expect(outcome.ok).toBe(true);
+    expect(
+      sim.world.logs.some((entry) => entry.text.includes("MACRO-COMMAND")),
+    ).toBe(true);
+  });
+});

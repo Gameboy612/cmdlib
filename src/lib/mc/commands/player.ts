@@ -1,7 +1,9 @@
 import { Cursor } from "../cursor";
-import { CompoundTag, isCompound } from "../nbt";
+import { CompoundTag, isCompound, NbtTag, Tag } from "../nbt";
 import { STATUS_EFFECT_IDS } from "../data";
 import { isGameMode, type GameMode } from "../player";
+import { normalizeItemId, parseItemComponents } from "../items";
+import { applyItemModifier } from "../item_modifiers";
 import { SCOREBOARD_MAX, SCOREBOARD_MIN } from "../world";
 import type { EntityData } from "../entities";
 import {
@@ -115,12 +117,16 @@ function readOptionalItemNbt(cursor: Cursor): CompoundTag | undefined {
 
 function readGiveItem(
   cursor: Cursor,
-): { id: string; count: number; nbt?: CompoundTag } {
-  const id = cursor.readResourceLocation();
+): { id: string; count: number; nbt?: CompoundTag; components?: Record<string, NbtTag> } {
+  const id = normalizeItemId(cursor.readResourceLocation());
   let count = 1;
   let nbt: CompoundTag | undefined;
+  let components: Record<string, NbtTag> | undefined;
 
   cursor.skip();
+  if (cursor.peek() === "[") {
+    components = parseItemComponents(cursor.readBalanced());
+  }
   if (cursor.peek() === "{") {
     nbt = readOptionalItemNbt(cursor);
   } else {
@@ -138,7 +144,7 @@ function readGiveItem(
       nbt = readOptionalItemNbt(cursor);
     }
   }
-  return { id, count, nbt };
+  return { id, count, nbt, components };
 }
 
 /* ------------------------------ /gamemode ------------------------------- */
@@ -182,7 +188,7 @@ export const giveHandler: Handler = (cursor, ctx) => {
 
   if (!ctx.lint) {
     for (const player of players) {
-      ctx.world.givePlayerItem(player, item.id, item.count, item.nbt);
+      ctx.world.givePlayerItem(player, item.id, item.count, item.nbt, item.components);
     }
   }
   feedback(
@@ -491,4 +497,98 @@ export const triggerHandler: Handler = (cursor, ctx) => {
     `Triggered '${objective}' for ${ctx.world.holderDisplayName(holder)} (${action} ${amount}, now ${result})`,
   );
   return { result, success: true };
+};
+
+export const damageHandler: Handler = (cursor, ctx) => {
+  const targetsStart = cursor.mark();
+  const raw = cursor.readTargetsRaw().raw;
+  const amount = cursor.readNumber().value;
+  if (!Number.isFinite(amount) || amount < 0) {
+    cursor.error("Damage amount must be a non-negative number", cursor.mark(), "damage");
+  }
+  // Optional damage type / at / by clauses are accepted but do not alter the
+  // simulated health reduction.
+  while (!cursor.done()) cursor.readWord();
+  let entities: EntityData[] = [];
+  try {
+    entities = resolveEntityTargets(ctx.world, raw, {
+      source: ctx.source,
+      origin: ctx.pos,
+      lenient: ctx.lint,
+    });
+  } catch (error) {
+    if (error instanceof SelectorError) cursor.error(error.message, targetsStart, "selector");
+    throw error;
+  }
+  if (!ctx.lint) {
+    for (const entity of entities) {
+      if (entity.isPlayer) {
+        ctx.world.damagePlayer(entity, amount);
+      } else {
+        const current = entity.nbt.value.Health;
+        const value = typeof current?.value === "number" ? current.value : 20;
+        entity.nbt.value.Health = Tag.float(Math.max(0, value - amount));
+      }
+    }
+    ctx.world.touch();
+  }
+  feedback(
+    ctx,
+    "success",
+    `Applied ${amount} damage to ${entities.length} ${entities.length === 1 ? "entity" : "entities"}`,
+  );
+  return { result: entities.length, success: true };
+};
+
+export const itemHandler: Handler = (cursor, ctx) => {
+  const actionStart = cursor.mark();
+  const action = cursor.readWord();
+  if (action !== "replace" && action !== "modify") {
+    cursor.error("Expected replace or modify", actionStart, "item-action");
+    return { result: 0, success: false };
+  }
+  const source = cursor.readWord();
+  if (source !== "entity") {
+    cursor.error("Only entity item slots are simulated", cursor.mark(), "item-source");
+  }
+  const targetsStart = cursor.mark();
+  const raw = cursor.readTargetsRaw().raw;
+  const slotStart = cursor.mark();
+  const slot = cursor.readWord();
+  const players = resolvePlayers(cursor, ctx, raw, targetsStart);
+  if (action === "replace") {
+    cursor.expectWord("with");
+    const item = readGiveItem(cursor);
+    if (!ctx.lint) {
+      for (const player of players) {
+        if (!ctx.world.setItemAt(player, slot, {
+          id: item.id,
+          count: item.count,
+          nbt: item.nbt,
+          components: item.components,
+        })) {
+          cursor.error(`Unknown item slot '${slot}'`, slotStart, "item-slot");
+        }
+      }
+    }
+    feedback(ctx, "success", `Replaced ${slot} with ${item.count} ${item.id}`);
+    return { result: players.length, success: true };
+  }
+  const modifierId = cursor.readResourceLocation();
+  const modifier = ctx.world.getItemModifier(modifierId);
+  if (!modifier) {
+    cursor.error(`Unknown item modifier '${modifierId}'`, cursor.mark(), "unknown-item-modifier");
+  }
+  if (!ctx.lint) {
+    for (const player of players) {
+      const current = ctx.world.getItemAt(player, slot);
+      if (!current) continue;
+      if (modifier) {
+        const next = applyItemModifier(modifier, current);
+        ctx.world.setItemAt(player, slot, next);
+      }
+    }
+  }
+  feedback(ctx, "success", `Modified ${slot} with ${modifierId}`);
+  return { result: players.length, success: true };
 };

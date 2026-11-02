@@ -8,6 +8,7 @@ import type { CommandContext, CommandResult, Runtime } from "./commands/context"
 import { parseDatapack, type Project } from "./datapack";
 import { parsePredicateFiles } from "./predicates";
 import { parseAdvancementFiles } from "./advancements";
+import { parseItemModifierFiles } from "./item_modifiers";
 import { getVersion, type VersionProfile } from "./version";
 import { macroValueToString } from "./commands/function";
 import { HANDLERS } from "./commands";
@@ -124,10 +125,17 @@ export class Simulator implements Runtime {
         advancements.set(id, advancement);
       }
     }
+    const modifiers = new Map<string, ReturnType<typeof parseItemModifierFiles>["modifiers"] extends Map<string, infer T> ? T : never>();
+    for (const source of sources) {
+      for (const [id, modifier] of parseItemModifierFiles(source.files).modifiers) {
+        modifiers.set(id, modifier);
+      }
+    }
     this.world.setFunctions([...functions.values()]);
     this.world.setFunctionTags([...tags.values()]);
     this.world.setPredicates(predicates);
     this.world.setAdvancements(advancements);
+    this.world.setItemModifiers(modifiers);
   }
 
   /** Build a new world, load the pack, and run its load tags. */
