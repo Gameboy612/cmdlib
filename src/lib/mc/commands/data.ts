@@ -146,6 +146,9 @@ function get(cursor: Cursor, ctx: CommandContext): CommandResult {
 function merge(cursor: Cursor, ctx: CommandContext): CommandResult {
   const source = readSource(cursor, ctx, true);
   const nbt = cursor.readSnbt().tag;
+  if (!cursor.done()) {
+    cursor.error(`Unexpected trailing input '${cursor.readRest()}'`, cursor.mark(), "trailing");
+  }
   if (!isCompound(nbt)) {
     cursor.error("data merge requires a compound tag", cursor.mark(), "nbt-type");
   }
@@ -187,6 +190,13 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
     const valueKind = cursor.readWord();
     if (valueKind === "value") {
       value = cursor.readSnbt().tag;
+      if (!cursor.done()) {
+        cursor.error(
+          `Unexpected trailing input '${cursor.readRest()}'`,
+          cursor.mark(),
+          "trailing",
+        );
+      }
     } else if (valueKind === "from") {
       const fromSource = readSource(cursor, ctx, false);
       // The source path is optional in vanilla: with no path the entire
@@ -199,17 +209,31 @@ function modify(cursor: Cursor, ctx: CommandContext): CommandResult {
         const fromPathText = cursor.readNbtPathText();
         const fromPath = parsePathSafe(cursor, fromPathText, fromPathStart);
         const matches = resolvePath(fromSource.root, fromPath);
-        if (matches.length !== 1) {
+        if (matches.length === 0) {
           if (!ctx.lint) {
             throw new CommandError(
-              matches.length === 0
-                ? `No tag was found at path '${fromPathText}'`
-                : `The source path matched ${matches.length} tags; it must match exactly one`,
+              `No tag was found at path '${fromPathText}'`,
               fromPathStart,
               "path-count",
             );
           }
           value = Tag.compound();
+        } else if (matches.length > 1) {
+          if (ctx.lint || (mode !== "append" && mode !== "prepend" && mode !== "insert")) {
+            if (!ctx.lint) {
+              throw new CommandError(
+                `The source path matched ${matches.length} tags; it must match exactly one`,
+                fromPathStart,
+                "path-count",
+              );
+            }
+            value = Tag.compound();
+          } else {
+            value = Tag.list(
+              matches.map((match) => clone(match.value)),
+              "end",
+            );
+          }
         } else {
           value = clone(matches[0].value);
         }

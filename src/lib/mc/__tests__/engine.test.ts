@@ -502,3 +502,27 @@ describe("display entity matrix transformations", () => {
     expect(stringifySnbt(scale[0])).toBe("[1.0f, 1.0f, 1.0f]");
   });
 });
+
+describe("homogeneous display matrices", () => {
+  it("divides translation and scale by the final matrix cell", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand(
+      "summon item_display 0 64 0 {transformation:[1f,0f,0f,1f,0f,1f,0f,2f,0f,0f,1f,3f,0f,0f,0f,2f]}",
+    );
+    const entity = sim.world.entities.find(
+      (candidate) => candidate.type === "minecraft:item_display",
+    )!;
+    const translation = getPathValues(
+      entity.nbt,
+      parseNbtPath("transformation.translation"),
+    )[0];
+    const scale = getPathValues(
+      entity.nbt,
+      parseNbtPath("transformation.scale"),
+    )[0];
+    expect(stringifySnbt(translation)).toBe("[0.5f, 1.0f, 1.5f]");
+    expect(stringifySnbt(scale)).toBe("[0.5f, 0.5f, 0.5f]");
+  });
+});

@@ -211,19 +211,27 @@ function isTransformationMatrix(tag: NbtTag | undefined): tag is ListTag {
 
 function matrixField(tag: ListTag, field: string): NbtTag | null {
   const value = tag.value.map((item) => numericValue(item) ?? 0);
+  // The final cell is the homogeneous w divisor. Projective matrices use it
+  // to scale translation/scale, which is how gm encodes division and products.
+  const w = value[15] === 0 ? 1 : value[15];
   if (field === "translation") {
     return Tag.list(
-      [Tag.float(value[3]), Tag.float(value[7]), Tag.float(value[11])],
+      [
+        Tag.float(value[3] / w),
+        Tag.float(value[7] / w),
+        Tag.float(value[11] / w),
+      ],
       "float",
     );
   }
   if (field === "scale") {
-    const lengths = [0, 1, 2].map((column) =>
-      Math.hypot(
-        value[column],
-        value[4 + column],
-        value[8 + column],
-      ),
+    const lengths = [0, 1, 2].map(
+      (column) =>
+        Math.hypot(
+          value[column],
+          value[4 + column],
+          value[8 + column],
+        ) / w,
     );
     return Tag.list(lengths.map((n) => Tag.float(n)), "float");
   }
@@ -392,6 +400,12 @@ export type ModifyMode =
   | "insert"
   | "remove";
 
+function listItems(value: NbtTag): NbtTag[] {
+  return isList(value)
+    ? value.value.map((item) => cloneTag(item))
+    : [cloneTag(value)];
+}
+
 export function applyPathModify(
   root: CompoundTag,
   segments: NbtPathSegment[],
@@ -447,13 +461,14 @@ export function applyPathModify(
           throw new Error(`Cannot ${mode} to a tag that is not a list`);
         }
         if (!value) throw new Error(`${mode} requires a value`);
-        if (mode === "append") current.value.push(cloneTag(value));
-        else if (mode === "prepend") current.value.unshift(cloneTag(value));
+        const items = listItems(value);
+        if (mode === "append") current.value.push(...items);
+        else if (mode === "prepend") current.value.unshift(...items);
         else {
           if (insertIndex < 0 || insertIndex > current.value.length) {
             throw new Error(`Index ${insertIndex} is outside the list`);
           }
-          current.value.splice(insertIndex, 0, cloneTag(value));
+          current.value.splice(insertIndex, 0, ...items);
         }
         break;
       }
@@ -517,13 +532,14 @@ export function applyPathModify(
         if (!current || !isList(current)) {
           throw new Error(`Cannot ${mode} to a tag that is not a list`);
         }
-        if (mode === "append") current.value.push(cloneTag(value!));
-        else if (mode === "prepend") current.value.unshift(cloneTag(value!));
+        const items = listItems(value!);
+        if (mode === "append") current.value.push(...items);
+        else if (mode === "prepend") current.value.unshift(...items);
         else {
           if (insertIndex < 0 || insertIndex > current.value.length) {
             throw new Error(`Index ${insertIndex} is outside the list`);
           }
-          current.value.splice(insertIndex, 0, cloneTag(value!));
+          current.value.splice(insertIndex, 0, ...items);
         }
         break;
       }
