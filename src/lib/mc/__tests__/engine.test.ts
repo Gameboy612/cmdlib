@@ -653,6 +653,12 @@ describe("storage text components", () => {
     sim.runCommand(
       'tellraw @a [{"text":"Stored: "},{"storage":"test:storage","nbt":""}]',
     );
+    sim.runCommand('data merge storage a {message:{text:"Short",color:"gold"}}');
+    const shortRuns = renderTextComponent(
+      parseSnbt('{storage:"a",nbt:"message",interpret:true}'),
+      sim.world.textContext(sim.world.player()!),
+    );
+    expect(shortRuns.map((run) => run.text).join("")).toBe("Short");
     expect(sim.world.logs.some((entry) => entry.text.includes("Stored: "))).toBe(true);
   });
 });

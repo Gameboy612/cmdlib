@@ -1176,6 +1176,7 @@ export class World {
 
   textContext(source: EntityData | null, origin?: Vec3): TextRenderContext {
     const pos = origin ?? (source ? entityPos(source) : { x: 0, y: 64, z: 0 });
+    const normalizeId = (id: string) => (id.includes(":") ? id : `minecraft:${id}`);
     return {
       resolveScoreHolder: (name) => {
         if (name === "@s" && source) return entityHolderName(source);
@@ -1217,7 +1218,7 @@ export class World {
         try {
           const segments = path ? parseNbtPath(path) : [];
           if (sourceType === "storage") {
-            const storage = this.storages.get(id);
+            const storage = this.storages.get(normalizeId(id));
             return storage ? getPathValues(storage, segments) : [];
           }
           if (sourceType === "entity") {
@@ -1235,7 +1236,7 @@ export class World {
         try {
           const segments = path ? parseNbtPath(path) : [];
           if (sourceType === "storage") {
-            const storage = this.storages.get(id);
+            const storage = this.storages.get(normalizeId(id));
             if (!storage) return null;
             return getPathValues(storage, segments)[0] ?? null;
           }
