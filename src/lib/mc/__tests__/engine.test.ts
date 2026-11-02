@@ -476,3 +476,29 @@ describe("data modify string from numeric tags", () => {
     expect(last).toEqual(Tag.string("f"));
   });
 });
+
+describe("display entity matrix transformations", () => {
+  it("exposes translation and scale from a 16-float matrix", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand(
+      "summon item_display 0 64 0 {transformation:[1f,0f,0f,1f,0f,1f,0f,2f,0f,0f,1f,3f,0f,0f,0f,1f]}",
+    );
+    const entity = sim.world.entities.find(
+      (candidate) => candidate.type === "minecraft:item_display",
+    )!;
+    const translation = getPathValues(
+      entity.nbt,
+      parseNbtPath("transformation.translation"),
+    );
+    const scale = getPathValues(
+      entity.nbt,
+      parseNbtPath("transformation.scale"),
+    );
+    expect(translation).toHaveLength(1);
+    expect(scale).toHaveLength(1);
+    expect(stringifySnbt(translation[0])).toBe("[1.0f, 2.0f, 3.0f]");
+    expect(stringifySnbt(scale[0])).toBe("[1.0f, 1.0f, 1.0f]");
+  });
+});

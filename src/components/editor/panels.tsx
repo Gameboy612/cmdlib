@@ -141,6 +141,7 @@ export function ExplorerPanel() {
     [lintReport],
   );
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [draft, setDraft] = useState<ExplorerDraft | null>(null);
   const [dragPath, setDragPath] = useState<string | null>(null);
@@ -599,12 +600,39 @@ export function ExplorerPanel() {
         {!isCollapsed && renderDraftRow(node.path, depth + 1)}
         {!isCollapsed &&
           node.children &&
-          [...node.children.values()]
-            .sort((a, b) => {
+          (() => {
+            const folderKey = node.path || "__root";
+            const sorted = [...node.children.values()].sort((a, b) => {
               if (a.file !== b.file) return a.file ? 1 : -1;
               return a.name.localeCompare(b.name);
-            })
-            .map((child) => renderNode(child, node.name ? depth + 1 : depth))}
+            });
+            const limit = visibleCounts[folderKey] ?? 300;
+            const shown = sorted.slice(0, limit);
+            const remaining = sorted.length - shown.length;
+            return (
+              <>
+                {shown.map((child) =>
+                  renderNode(child, node.name ? depth + 1 : depth),
+                )}
+                {remaining > 0 && (
+                  <button
+                    type="button"
+                    className={styles.treeMore}
+                    style={{ paddingLeft: 8 + (depth + 1) * 13 }}
+                    onClick={() =>
+                      setVisibleCounts((current) => ({
+                        ...current,
+                        [folderKey]: limit + 300,
+                      }))
+                    }
+                  >
+                    Show {Math.min(300, remaining).toLocaleString()} more of{" "}
+                    {remaining.toLocaleString()}
+                  </button>
+                )}
+              </>
+            );
+          })()}
       </div>
     );
   };

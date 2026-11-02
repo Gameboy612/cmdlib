@@ -194,6 +194,48 @@ export interface PathNode {
   value: NbtTag;
 }
 
+const TRANSFORM_FIELDS = new Set([
+  "translation",
+  "scale",
+  "left_rotation",
+  "right_rotation",
+]);
+
+function isTransformationMatrix(tag: NbtTag | undefined): tag is ListTag {
+  return (
+    isList(tag) &&
+    tag.value.length === 16 &&
+    tag.value.every((item) => numericValue(item) !== null)
+  );
+}
+
+function matrixField(tag: ListTag, field: string): NbtTag | null {
+  const value = tag.value.map((item) => numericValue(item) ?? 0);
+  if (field === "translation") {
+    return Tag.list(
+      [Tag.float(value[3]), Tag.float(value[7]), Tag.float(value[11])],
+      "float",
+    );
+  }
+  if (field === "scale") {
+    const lengths = [0, 1, 2].map((column) =>
+      Math.hypot(
+        value[column],
+        value[4 + column],
+        value[8 + column],
+      ),
+    );
+    return Tag.list(lengths.map((n) => Tag.float(n)), "float");
+  }
+  // Matrix decomposition rotations are only exposed as the identity unless
+  // the matrix is used for rendering. Translation and scale cover the common
+  // datapack use cases.
+  return Tag.list(
+    [Tag.float(0), Tag.float(0), Tag.float(0), Tag.float(1)],
+    "float",
+  );
+}
+
 export function resolvePath(root: NbtTag, segments: NbtPathSegment[]): PathNode[] {
   let nodes: PathNode[] = [{ parent: null, key: null, value: root }];
 
@@ -203,7 +245,15 @@ export function resolvePath(root: NbtTag, segments: NbtPathSegment[]): PathNode[
       const current = node.value;
       switch (segment.kind) {
         case "key": {
-          if (!isCompound(current)) continue;
+          if (!isCompound(current)) {
+            if (isTransformationMatrix(current) && TRANSFORM_FIELDS.has(segment.key)) {
+              const value = matrixField(current, segment.key);
+              if (value) {
+                next.push({ parent: current, key: null, value });
+              }
+            }
+            continue;
+          }
           const value = current.value[segment.key];
           if (value === undefined) continue;
           next.push({ parent: current, key: segment.key, value });

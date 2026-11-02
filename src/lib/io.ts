@@ -24,8 +24,17 @@ export function downloadProject(project: Project): void {
   downloadBlob(new Blob([zip], { type: "application/zip" }), `${safeName}.zip`);
 }
 
-const MAX_ARCHIVE_FILES = 10_000;
-const MAX_ARCHIVE_BYTES = 64 * 1024 * 1024;
+const MAX_ARCHIVE_FILES = 50_000;
+const MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
+
+/** Only these paths are part of the editable datapack surface. */
+function isDatapackPath(path: string): boolean {
+  return (
+    path.endsWith(".mcfunction") ||
+    path.endsWith(".json") ||
+    path.endsWith(".mcmeta")
+  );
+}
 
 function assertArchiveLimits(entries: Record<string, Uint8Array>): void {
   const paths = Object.keys(entries);
@@ -51,13 +60,15 @@ export interface ImportedProject {
 
 export async function readProjectZip(file: File): Promise<ImportedProject> {
   const buffer = new Uint8Array(await file.arrayBuffer());
-  const unzipped = unzipSync(buffer);
+  const unzipped = unzipSync(buffer, {
+    filter: (entry) => !entry.name.endsWith("/") && isDatapackPath(entry.name),
+  });
   assertArchiveLimits(unzipped);
   const files: Record<string, string> = {};
   for (const [path, data] of Object.entries(unzipped)) {
     if (path.endsWith("/")) continue;
     if (path.includes("__MACOSX")) continue;
-    if (!path.endsWith(".mcfunction") && !path.endsWith(".json") && !path.endsWith(".mcmeta")) continue;
+    if (!isDatapackPath(path)) continue;
     // Some zips have a wrapping folder; strip the first segment if the pack
     // metadata is not at the root.
     files[path] = strFromU8(data);
@@ -85,18 +96,14 @@ export function readProjectArchiveBytes(
   buffer: Uint8Array,
   archiveName: string,
 ): ImportedProjectArchive {
-  const unzipped = unzipSync(buffer);
+  const unzipped = unzipSync(buffer, {
+    filter: (entry) => !entry.name.endsWith("/") && isDatapackPath(entry.name),
+  });
   assertArchiveLimits(unzipped);
   const files: Record<string, string> = {};
   for (const [path, data] of Object.entries(unzipped)) {
     if (path.endsWith("/") || path.includes("__MACOSX")) continue;
-    if (
-      !path.endsWith(".mcfunction") &&
-      !path.endsWith(".json") &&
-      !path.endsWith(".mcmeta")
-    ) {
-      continue;
-    }
+    if (!isDatapackPath(path)) continue;
     files[path.replace(/^\/+/, "")] = strFromU8(data);
   }
 
