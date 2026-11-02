@@ -927,6 +927,24 @@ export function PreviewPanel() {
 /* ------------------------------------------------------------------ */
 type ConsoleFilter = "error" | "warning" | "chat" | "data" | "command" | "system";
 
+const CONSOLE_FILTER_STORAGE_KEY = "cmdlib:console-filters:v1";
+
+function readConsoleFilters(): Set<ConsoleFilter> {
+  if (typeof window === "undefined") {
+    return new Set(CONSOLE_FILTERS.map((filter) => filter.id));
+  }
+  try {
+    const raw = window.localStorage.getItem(CONSOLE_FILTER_STORAGE_KEY);
+    if (!raw) return new Set(CONSOLE_FILTERS.map((filter) => filter.id));
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set(CONSOLE_FILTERS.map((filter) => filter.id));
+    const valid = new Set(CONSOLE_FILTERS.map((filter) => filter.id));
+    return new Set(parsed.filter((id): id is ConsoleFilter => typeof id === "string" && valid.has(id as ConsoleFilter)) as ConsoleFilter[]);
+  } catch {
+    return new Set(CONSOLE_FILTERS.map((filter) => filter.id));
+  }
+}
+
 const CONSOLE_FILTERS: Array<{ id: ConsoleFilter; label: string }> = [
   { id: "error", label: "errors" },
   { id: "warning", label: "warnings" },
@@ -951,9 +969,7 @@ export function ConsolePanel() {
   const clearConsole = useWorkbench((state) => state.clearConsole);
   const recent = useWorkbench((state) => state.recentCommands);
   const completionIndex = useCompletionIndex();
-  const [filters, setFilters] = useState<Set<ConsoleFilter>>(
-    () => new Set(CONSOLE_FILTERS.map((filter) => filter.id)),
-  );
+  const [filters, setFilters] = useState<Set<ConsoleFilter>>(readConsoleFilters);
   const [value, setValue] = useState("");
   const [historyIndex, setHistoryIndex] = useState(-1);
   const historyDraft = useRef("");
@@ -965,6 +981,17 @@ export function ConsolePanel() {
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        CONSOLE_FILTER_STORAGE_KEY,
+        JSON.stringify([...filters]),
+      );
+    } catch {
+      // Storage can be unavailable in private browsing.
+    }
+  }, [filters]);
 
   useEffect(() => {
     const element = scrollRef.current;

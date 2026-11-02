@@ -7,7 +7,7 @@ import { Simulator } from "../simulator";
 import { entityPos } from "../entities";
 import { getVersion } from "../version";
 import { parseTextComponent } from "../snbt";
-import { plainText } from "../text";
+import { plainText, renderTextComponent } from "../text";
 
 describe("NBT", () => {
   it("parses and prints the demo SNBT", () => {
@@ -654,5 +654,18 @@ describe("storage text components", () => {
       'tellraw @a [{"text":"Stored: "},{"storage":"test:storage","nbt":""}]',
     );
     expect(sim.world.logs.some((entry) => entry.text.includes("Stored: "))).toBe(true);
+  });
+});
+
+
+describe("selector text components", () => {
+  it("renders the resolved entity's custom-name component", () => {
+    const runs = renderTextComponent(parseSnbt('{selector:"@e"}'), {
+      resolveSelectorComponents: () => [
+        Tag.compound({ text: Tag.string("Guard"), color: Tag.string("gold") }),
+      ],
+    });
+    expect(runs.map((run) => run.text).join("")).toBe("Guard");
+    expect(runs[0]?.color).toBe("#FFAA00");
   });
 });

@@ -1186,6 +1186,21 @@ export class World {
         }
       },
       resolveScore: (holder, objective) => this.getScore(holder, objective) ?? null,
+      resolveSelectorComponents: (selector) => {
+        try {
+          const parsed = parseSelector(selector);
+          return selectEntities(this, parsed, {
+            source,
+            origin: pos,
+            lenient: true,
+          }).map((entity) => {
+            const custom = entity.nbt.value.CustomName;
+            return custom ?? Tag.string(entityCustomName(entity));
+          });
+        } catch {
+          return [];
+        }
+      },
       resolveSelector: (selector) => {
         try {
           const parsed = parseSelector(selector);

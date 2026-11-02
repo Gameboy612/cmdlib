@@ -1,4 +1,4 @@
-import { isCompound, isList, NbtTag, numericValue, stringifySnbt } from "./nbt";
+import { isCompound, isList, NbtTag, numericValue, stringifySnbt, Tag } from "./nbt";
 
 /**
  * Text component rendering. Minecraft's component tree is deep; cmdlib renders
@@ -42,6 +42,7 @@ export interface TextRenderContext {
   resolveScoreHolder?: (name: string) => string;
   resolveScore?: (holder: string, objective: string) => number | null;
   resolveSelector?: (selector: string) => string[];
+  resolveSelectorComponents?: (selector: string) => NbtTag[];
   resolveEntityNbt?: (selector: string, path: string) => string | null;
   resolveNbtTag?: (
     source: "storage" | "entity" | "block",
@@ -172,6 +173,23 @@ function collect(
   }
   if (!isCompound(component)) return;
   const style = styleFrom(component, parentStyle);
+  const selectorText = readString(component, "selector");
+  if (selectorText && ctx.resolveSelectorComponents) {
+    const selected = ctx.resolveSelectorComponents(selectorText);
+    const separator = component.value["separator"] ?? Tag.compound({
+      text: Tag.string(", "),
+      color: Tag.string("gray"),
+    });
+    selected.forEach((child, index) => {
+      if (index > 0) collect(separator, ctx, style, out);
+      collect(child, ctx, style, out);
+    });
+    const selectorExtra = component.value["extra"];
+    if (isList(selectorExtra)) {
+      for (const child of selectorExtra.value) collect(child, ctx, style, out);
+    }
+    return;
+  }
   const main = componentText(component, ctx);
   if (main.length > 0) out.push({ text: main, ...style });
   const extra = component.value["extra"];
