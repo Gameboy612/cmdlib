@@ -65,6 +65,11 @@ export function CtfModal() {
           <p className={styles.description}>{ctf.description}</p>
           {ctf.solved ? (
             <div className={styles.solved}>✓ Correct flag submitted. Challenge complete.</div>
+          ) : !ctf.flag ? (
+            <div className={styles.error}>
+              This repository has no `.secret/flag.txt`, so flag submission is
+              unavailable. The hidden server may still print a placeholder flag.
+            </div>
           ) : (
             <form className={styles.form} onSubmit={submit}>
               <input

@@ -87,12 +87,7 @@ function flagFromFiles(files: Record<string, string>): {
   if (matchingPath) {
     return { flag: (files[matchingPath] ?? "").trim(), path: matchingPath };
   }
-  for (const [path, content] of Object.entries(files)) {
-    if (!path.startsWith(".secret/") || !path.endsWith(".mcfunction")) continue;
-    const match = content.match(/(?:cuhkctf|flag|ctf)[a-z0-9_]*\{[^}\n]+\}/i);
-    if (match) return { flag: match[0], path };
-  }
-  return { flag: "test{fake_flag}", path: ".secret/flag.txt" };
+  return { flag: "", path: ".secret/flag.txt" };
 }
 
 /** Pull a challenge's public files, server pack and flag from its repository. */

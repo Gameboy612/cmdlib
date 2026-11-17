@@ -1275,7 +1275,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   submitFlag: (flag) => {
     const ctf = get().ctf;
-    if (!ctf) return false;
+    if (!ctf || !ctf.flag.trim()) return false;
     const solved = flag.trim() === ctf.flag.trim();
     if (!solved) return false;
     const solvedIds = readSolvedChallenges();
