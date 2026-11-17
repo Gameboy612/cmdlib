@@ -737,3 +737,19 @@ describe("trigger objective initialization", () => {
     expect(sim.world.getScore("Dev", "quests")).toBe(7);
   });
 });
+
+describe("scoreboard negative division", () => {
+  it("uses floor division and floor modulo", () => {
+    const project = createDemoProject("26.3");
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add math dummy");
+    sim.runCommand("scoreboard players set #a math 5");
+    sim.runCommand("scoreboard players set #b math -2");
+    sim.runCommand("scoreboard players operation #a math /= #b math");
+    expect(sim.world.getScore("#a", "math")).toBe(-3);
+    sim.runCommand("scoreboard players set #a math 5");
+    sim.runCommand("scoreboard players operation #a math %= #b math");
+    expect(sim.world.getScore("#a", "math")).toBe(-1);
+  });
+});

@@ -336,13 +336,17 @@ function players(cursor: Cursor, ctx: CommandContext): CommandResult {
               if (sourceValue === 0) {
                 throw new CommandError("Cannot divide by zero", opStart, "division-by-zero");
               }
-              next = Math.trunc(current / sourceValue);
+              // Vanilla scoreboard division rounds down (floor), not toward
+              // zero. This matters for negative Newton/sqrt loops.
+              next = Math.floor(current / sourceValue);
               break;
             case "%=":
               if (sourceValue === 0) {
                 throw new CommandError("Cannot divide by zero", opStart, "division-by-zero");
               }
-              next = current % sourceValue;
+              // Keep the remainder consistent with floor division.
+              next =
+                current - Math.floor(current / sourceValue) * sourceValue;
               break;
             case "<":
               next = Math.min(current, sourceValue);
