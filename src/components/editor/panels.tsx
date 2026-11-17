@@ -28,6 +28,7 @@ import styles from "./editor.module.css";
 import { asset } from "@/lib/base-path";
 import type { DockviewPanelApi } from "dockview";
 import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/components/ui/ContextMenu";
+import { CreativeItemModal } from "./CreativeItemModal";
 import { lineCompletions } from "@/lib/editor/completions";
 import type { Completion } from "@codemirror/autocomplete";
 
@@ -853,6 +854,7 @@ export function PreviewPanel() {
   const runLoad = useWorkbench((state) => state.runLoad);
   const showToast = useWorkbench((state) => state.showToast);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [creativeOpen, setCreativeOpen] = useState(false);
 
   const previewMenu = (event: React.MouseEvent, entity: EntityData | null) => {
     const items: ContextMenuEntry[] = [];
@@ -902,6 +904,12 @@ export function PreviewPanel() {
           onSelect: () => requestPanel("entities"),
         },
       );
+      if (player && world.playerGameMode(player) === "creative") {
+        items.push({
+          label: "Give item (creative)…",
+          onSelect: () => setCreativeOpen(true),
+        });
+      }
       if (player) {
         const pos = entityPos(player);
         items.push({
@@ -928,6 +936,7 @@ export function PreviewPanel() {
           onContextMenu={previewMenu}
         />
       </div>
+      <CreativeItemModal open={creativeOpen} onClose={() => setCreativeOpen(false)} />
       <div className={styles.panelFoot}>
         <span>{sim.version.id}</span>
         <span>{world.entities.length} {world.entities.length === 1 ? "entity" : "entities"}</span>
@@ -1570,6 +1579,7 @@ export function EntitiesPanel() {
   const spectating = player ? world.spectatorTarget(player) : undefined;
   const spectatedEntity = spectating ? world.entityByUuid(spectating) : undefined;
   const selectedEffects = entity ? world.effectsOf(entity) : [];
+  const [creativeOpen, setCreativeOpen] = useState(false);
 
   return (
     <div className={`${styles.panel} ${styles.entitiesPanel}`}>
@@ -1590,6 +1600,15 @@ export function EntitiesPanel() {
             <span className={styles.playerRuntimeCount}>
               {inventory.length} stack{inventory.length === 1 ? "" : "s"}
             </span>
+            {gameMode === "creative" && (
+              <button
+                type="button"
+                className={styles.creativeGive}
+                onClick={() => setCreativeOpen(true)}
+              >
+                + give item
+              </button>
+            )}
           </div>
           <div className={styles.playerRuntimeLine}>
             <span className={styles.playerRuntimeLabel}>inventory</span>
@@ -1626,6 +1645,7 @@ export function EntitiesPanel() {
           )}
         </div>
       )}
+      <CreativeItemModal open={creativeOpen} onClose={() => setCreativeOpen(false)} />
       <div className={styles.entitiesBody}>
         <div className={styles.entityList}>
           {entities.map((entry) => {

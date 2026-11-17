@@ -1432,3 +1432,15 @@
 }
 .joinButton:hover { background: rgba(198, 160, 91, 0.08); border-color: rgba(198, 160, 91, 0.45); }
 @media (max-width: 600px) { .joinButton { display: none; } }
+
+.creativeGive {
+  margin-left: 4px;
+  border: 1px solid rgba(255, 122, 69, 0.32);
+  border-radius: 3px;
+  padding: 2px 5px;
+  color: var(--accent-soft);
+  font-family: var(--mono);
+  font-size: 7px;
+  background: rgba(255, 122, 69, 0.06);
+}
+.creativeGive:hover { background: rgba(255, 122, 69, 0.14); color: var(--text); }

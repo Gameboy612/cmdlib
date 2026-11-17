@@ -69,3 +69,38 @@ describe("advancements", () => {
     expect(broken.diagnostics.some((entry) => entry.code === "invalid-advancement")).toBe(true);
   });
 });
+
+describe("advancement item components", () => {
+  it("requires matching custom_data components", () => {
+    const project = packWith({
+      signed: JSON.stringify({
+        criteria: {
+          signed: {
+            trigger: "minecraft:inventory_changed",
+            conditions: {
+              items: [
+                {
+                  items: "minecraft:written_book",
+                  components: {
+                    "minecraft:custom_data": { set_color_book: true },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        rewards: { function: "test:reward" },
+      }),
+    });
+    const sim = new Simulator({ project });
+    sim.reset();
+    sim.runCommand("give @s minecraft:written_book 1");
+    sim.tick();
+    expect(sim.world.isAdvancementGranted("Dev", "test:signed")).toBe(false);
+    sim.runCommand(
+      "give @s minecraft:written_book[custom_data={set_color_book:true}] 1",
+    );
+    sim.tick();
+    expect(sim.world.isAdvancementGranted("Dev", "test:signed")).toBe(true);
+  });
+});
