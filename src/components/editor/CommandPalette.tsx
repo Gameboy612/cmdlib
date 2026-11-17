@@ -38,6 +38,7 @@ export function CommandPalette() {
       { id: "export", label: "Export pack as .zip", group: "Pack", keywords: "download save", run: state.exportZip },
       { id: "new-pack", label: "Add another pack", group: "Pack", keywords: "create datapack", run: () => state.addPack() },
       { id: "projects", label: "Open projects", group: "Pack", keywords: "workspace switch", run: () => window.open(asset("/projects/"), "_self") },
+      { id: "ctf", label: "Open CTF challenges", group: "Pack", keywords: "challenge flag capture", run: () => window.open(asset("/ctf/"), "_self") },
       { id: "preferences", label: "Preferences", hint: formatBinding(keybindings.preferences), group: "Tools", keywords: "keybindings shortcuts settings", run: () => state.setPreferencesOpen(true) },
       { id: "reset-layout", label: "Reset dock layout", group: "Layout", keywords: "panels windows", run: state.resetLayout },
       { id: "re-lint", label: "Re-run the linter", group: "Tools", keywords: "problems errors", run: () => state.refreshLint() },

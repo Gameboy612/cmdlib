@@ -8,6 +8,7 @@ import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/com
 import { isCompound, Tag } from "@/lib/mc/nbt";
 import { plainText } from "@/lib/mc/text";
 import { NbtTree } from "./NbtTree";
+import { CreativeItemModal } from "./CreativeItemModal";
 import styles from "./inventory.module.css";
 
 function bookPageForStorage(text: string): string {
@@ -58,6 +59,7 @@ export function InventoryPanel() {
   const [pageText, setPageText] = useState("");
   const [bookTitle, setBookTitle] = useState("");
   const [componentsItem, setComponentsItem] = useState<{ slot: string; item: InventoryItem } | null>(null);
+  const [creativeOpen, setCreativeOpen] = useState(false);
   const health = world.playerHealth(player);
   const maxHealth = 20;
   const selected = world.playerSelectedSlot(player);
@@ -221,6 +223,15 @@ export function InventoryPanel() {
         <span className={styles.healthLabel}>
           ♥ {health.toFixed(0)} / {maxHealth}
         </span>
+        {player && world.playerGameMode(player) === "creative" && (
+          <button
+            type="button"
+            className={styles.creativeButton}
+            onClick={() => setCreativeOpen(true)}
+          >
+            + give item
+          </button>
+        )}
         <span className={styles.barRight}>{selected >= 0 ? `hotbar ${selected + 1}` : "no player"}</span>
       </div>
       <div className={styles.healthTrack}>
@@ -281,6 +292,7 @@ export function InventoryPanel() {
           </div>
         </section>
       </div>
+      <CreativeItemModal open={creativeOpen} onClose={() => setCreativeOpen(false)} />
       <ContextMenu menu={menu} onClose={() => setMenu(null)} />
       {componentsItem && (
         <div className={styles.modalBackdrop} onMouseDown={(event) => {

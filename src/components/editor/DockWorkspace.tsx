@@ -190,6 +190,13 @@ function buildDefaultLayout(api: DockviewApi): void {
     position: { referencePanel: "editor", direction: "right" },
     initialWidth: 480,
   });
+  api.addPanel({
+    id: "inventory",
+    component: "inventory",
+    title: "Inventory",
+    position: { referencePanel: "preview", direction: "within" },
+    inactive: true,
+  });
   // The console belongs to a full-width bottom edge group. If the build of
   // dockview does not support edge groups, fall back to a normal bottom split.
   try {
@@ -240,13 +247,6 @@ function buildDefaultLayout(api: DockviewApi): void {
       component: "advancements",
       title: "Advancements",
       position: { referencePanel: "timeline", direction: "within" },
-      inactive: true,
-    });
-    api.addPanel({
-      id: "inventory",
-      component: "inventory",
-      title: "Inventory",
-      position: { referencePanel: "advancements", direction: "within" },
       inactive: true,
     });
   }

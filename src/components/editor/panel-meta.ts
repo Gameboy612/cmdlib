@@ -9,6 +9,7 @@ export const PANEL_LABELS: Record<string, string> = {
   scoreboard: "Scores",
   storage: "Storage",
   entities: "Entities",
+  inventory: "Inventory",
   problems: "Problems",
   reference: "Reference",
 };
@@ -24,6 +25,7 @@ export const PANEL_ORDER = [
   "scoreboard",
   "storage",
   "entities",
+  "inventory",
   "problems",
   "reference",
 ];

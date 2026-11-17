@@ -1569,17 +1569,7 @@ export function EntitiesPanel() {
     [world, revision],
   );
   const entity = selected ? world.entityByUuid(selected) : undefined;
-  const player = world.player();
-  const gameMode = player ? world.playerGameMode(player) : "survival";
-  const inventory = player ? world.playerInventory(player) : [];
-  const effects = player ? world.effectsOf(player) : [];
-  const triggers = player
-    ? [...(world.playerState(player)?.enabledTriggers ?? [])]
-    : [];
-  const spectating = player ? world.spectatorTarget(player) : undefined;
-  const spectatedEntity = spectating ? world.entityByUuid(spectating) : undefined;
   const selectedEffects = entity ? world.effectsOf(entity) : [];
-  const [creativeOpen, setCreativeOpen] = useState(false);
 
   return (
     <div className={`${styles.panel} ${styles.entitiesPanel}`}>
@@ -1591,61 +1581,6 @@ export function EntitiesPanel() {
           </button>
         )}
       </div>
-      {player && (
-        <div className={styles.playerRuntime}>
-          <div className={styles.playerRuntimeLine}>
-            <span className={styles.playerRuntimeLabel}>player</span>
-            <b>{entityCustomName(player)}</b>
-            <span className={styles.playerMode}>{gameMode}</span>
-            <span className={styles.playerRuntimeCount}>
-              {inventory.length} stack{inventory.length === 1 ? "" : "s"}
-            </span>
-            {gameMode === "creative" && (
-              <button
-                type="button"
-                className={styles.creativeGive}
-                onClick={() => setCreativeOpen(true)}
-              >
-                + give item
-              </button>
-            )}
-          </div>
-          <div className={styles.playerRuntimeLine}>
-            <span className={styles.playerRuntimeLabel}>inventory</span>
-            {inventory.length === 0 && <span className={styles.playerRuntimeMuted}>empty</span>}
-            {inventory.slice(0, 8).map((item) => (
-              <span key={`${item.id}-${item.count}`} className={styles.playerChip}>
-                {item.id.replace("minecraft:", "")} ×{item.count}
-              </span>
-            ))}
-            {inventory.length > 8 && (
-              <span className={styles.playerRuntimeMuted}>+{inventory.length - 8} more</span>
-            )}
-          </div>
-          {(effects.length > 0 || triggers.length > 0 || !!spectatedEntity) && (
-            <div className={styles.playerRuntimeLine}>
-              <span className={styles.playerRuntimeLabel}>state</span>
-              {effects.map((effect) => (
-                <span key={effect.id} className={styles.playerChip}>
-                  {effect.id.replace("minecraft:", "")} {effect.amplifier + 1} ·{" "}
-                  {Math.ceil(effect.durationTicks / 20)}s
-                </span>
-              ))}
-              {triggers.map((objective) => (
-                <span key={objective} className={styles.playerChip}>
-                  trigger:{objective}
-                </span>
-              ))}
-              {spectatedEntity && (
-                <span className={styles.playerChip}>
-                  spectating {entityCustomName(spectatedEntity)}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      <CreativeItemModal open={creativeOpen} onClose={() => setCreativeOpen(false)} />
       <div className={styles.entitiesBody}>
         <div className={styles.entityList}>
           {entities.map((entry) => {

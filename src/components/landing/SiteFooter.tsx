@@ -19,6 +19,7 @@ export function SiteFooter() {
             <span>Product</span>
             <Link href="/editor/">Editor</Link>
             <Link href="/features/">Supported features</Link>
+            <Link href="/ctf/">CTF challenges</Link>
             <a href="#run">Live runtime</a>
             <a href="#versions">Versions</a>
           </div>

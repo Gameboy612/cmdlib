@@ -46,6 +46,9 @@ export function SiteHeader() {
         </nav>
 
         <div className={styles.headerActions}>
+          <Link className={styles.creditsLink} href="/ctf/">
+            CTF
+          </Link>
           <Link className={styles.creditsLink} href="/features/">
             Features
           </Link>
