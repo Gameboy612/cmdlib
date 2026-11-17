@@ -147,7 +147,7 @@ interface WorkbenchState {
   requestExplorerCreate: (request: Omit<ExplorerCreateRequest, "nonce">) => void;
 }
 
-let hydrating = false;
+let hydratePromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let lintTimer: ReturnType<typeof setTimeout> | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -458,10 +458,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   panelRequest: null,
   explorerCreate: null,
 
-  hydrate: async () => {
-    if (get().hydrated || hydrating) return;
-    hydrating = true;
-    try {
+  hydrate: () => {
+    if (get().hydrated) return Promise.resolve();
+    if (hydratePromise) return hydratePromise;
+    hydratePromise = (async () => {
       const stored = readStoredWorkspaces();
       const projects = stored?.projects ?? get().projects;
       const activeProjectId = stored?.activeProjectId ?? get().activeProjectId;
@@ -522,9 +522,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
         recentCommands: readHistory(),
       });
       sim.touch();
-    } finally {
-      hydrating = false;
-    }
+    })().finally(() => {
+      hydratePromise = null;
+    });
+    return hydratePromise;
   },
 
   setProject: (project) => {

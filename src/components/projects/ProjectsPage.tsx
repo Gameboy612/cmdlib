@@ -39,11 +39,13 @@ export function ProjectsPage() {
   }, [hydrate]);
 
   const open = async (id: string) => {
+    await hydrate();
     await openProject(id);
     router.push("/editor/");
   };
 
   const playChallenge = async (id: string) => {
+    await hydrate();
     if (await startChallenge(id)) router.push("/editor/");
   };
 
@@ -55,6 +57,7 @@ export function ProjectsPage() {
   };
 
   const addPackTo = async (id: string) => {
+    await hydrate();
     await openProject(id);
     addPack();
     router.push("/editor/");

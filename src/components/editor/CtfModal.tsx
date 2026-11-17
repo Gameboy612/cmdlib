@@ -9,6 +9,7 @@ export function CtfModal() {
   const open = useWorkbench((state) => state.ctfModalOpen);
   const setOpen = useWorkbench((state) => state.setCtfModalOpen);
   const submitFlag = useWorkbench((state) => state.submitFlag);
+  const sim = useWorkbench((state) => state.sim);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +54,7 @@ export function CtfModal() {
               <span>{ctf.category}</span>
               <span>difficulty {ctf.difficulty}</span>
               <span>{ctf.solved ? "solved" : "unsolved"}</span>
+              <span>{sim.project.id.startsWith("ctf-server-") ? "hidden server" : "public fallback"}</span>
             </div>
           </div>
           <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Close challenge">
