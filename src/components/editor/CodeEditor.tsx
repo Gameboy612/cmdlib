@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
@@ -44,6 +44,8 @@ export function CodeEditor({
   const applyQuickFix = useWorkbench((state) => state.applyQuickFix);
   const setCursor = useWorkbench((state) => state.setCursor);
   const isJson = path.endsWith(".json") || path.endsWith(".mcmeta");
+  const wordWrap = useWorkbench((state) => state.wordWrap);
+  const wrapCompartment = useRef(new Compartment());
 
   useEffect(() => {
     const element = host.current;
@@ -74,6 +76,7 @@ export function CodeEditor({
       doc: value,
       extensions: [
         ...extensions,
+        wrapCompartment.current.of(wordWrap ? EditorView.lineWrapping : []),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
         EditorView.updateListener.of((update) => {
@@ -106,6 +109,16 @@ export function CodeEditor({
       changes: { from: 0, to: view.state.doc.length, insert: value },
     });
   }, [value]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: wrapCompartment.current.reconfigure(
+        wordWrap ? EditorView.lineWrapping : [],
+      ),
+    });
+  }, [wordWrap]);
 
   useEffect(() => {
     const handler = (event: Event) => {

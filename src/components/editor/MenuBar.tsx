@@ -41,6 +41,8 @@ export function MenuBar() {
   const exportZip = useWorkbench((state) => state.exportZip);
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const setSearchOpen = useWorkbench((state) => state.setSearchOpen);
+  const wordWrap = useWorkbench((state) => state.wordWrap);
+  const setWordWrap = useWorkbench((state) => state.setWordWrap);
   const requestPanel = useWorkbench((state) => state.requestPanel);
   const openPanels = useWorkbench((state) => state.openPanels);
   const resetLayout = useWorkbench((state) => state.resetLayout);
@@ -120,6 +122,7 @@ export function MenuBar() {
         { separator: true },
         { label: "Find", hint: "Ctrl F", run: () => dispatchEditorCommand("find") },
         { label: "Find in files…", hint: "Ctrl Shift F", run: () => setSearchOpen(true) },
+        { label: "Word wrap", checked: wordWrap, run: () => setWordWrap(!wordWrap) },
         { label: "Command palette", hint: "Ctrl K", run: () => setPaletteOpen(true) },
       ],
     },

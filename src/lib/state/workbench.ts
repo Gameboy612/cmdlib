@@ -70,6 +70,7 @@ interface WorkbenchState {
   toast: Toast | null;
   paletteOpen: boolean;
   searchOpen: boolean;
+  wordWrap: boolean;
   ctf: CtfSession | null;
   ctfModalOpen: boolean;
   tickPlaying: boolean;
@@ -124,6 +125,7 @@ interface WorkbenchState {
   showToast: (message: string, kind?: Toast["kind"]) => void;
   setPaletteOpen: (open: boolean) => void;
   setSearchOpen: (open: boolean) => void;
+  setWordWrap: (enabled: boolean) => void;
   startChallenge: (id: string) => Promise<boolean>;
   setCtfModalOpen: (open: boolean) => void;
   submitFlag: (flag: string) => boolean;
@@ -441,6 +443,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   toast: null,
   paletteOpen: false,
   searchOpen: false,
+  wordWrap: false,
   ctf: null,
   ctfModalOpen: false,
   tickPlaying: false,
@@ -520,6 +523,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
         booting: false,
         layoutJson,
         recentCommands: readHistory(),
+        wordWrap:
+          typeof window !== "undefined"
+            ? window.localStorage.getItem("cmdlib:word-wrap:v1") === "1"
+            : false,
       });
       sim.touch();
     })().finally(() => {
@@ -1149,6 +1156,16 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   setSearchOpen: (open) => set({ searchOpen: open }),
+  setWordWrap: (enabled) => {
+    set({ wordWrap: enabled });
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem("cmdlib:word-wrap:v1", enabled ? "1" : "0");
+      } catch {
+        // ignore storage failure
+      }
+    }
+  },
   setTickPlaying: (playing) => set({ tickPlaying: playing }),
   setTickSpeed: (speed) => set({ tickSpeed: speed }),
   setJoinOpen: (open) => set({ joinOpen: open }),

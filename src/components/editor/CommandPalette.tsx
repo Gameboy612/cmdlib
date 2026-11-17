@@ -22,6 +22,7 @@ export function CommandPalette() {
   const open = useWorkbench((state) => state.paletteOpen);
   const setOpen = useWorkbench((state) => state.setPaletteOpen);
   const keybindings = usePreferences((state) => state.keybindings);
+  const wordWrap = useWorkbench((state) => state.wordWrap);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -32,6 +33,7 @@ export function CommandPalette() {
     const base: Action[] = [
       { id: "run-load", label: "Run /reload", hint: formatBinding(keybindings.reload), group: "Runtime", keywords: "reload reset boot load tags", run: state.runLoad },
       { id: "run-file", label: "Run the active function", hint: formatBinding(keybindings.runActive), group: "Runtime", keywords: "execute", run: state.runActive },
+      { id: "word-wrap", label: wordWrap ? "Disable word wrap" : "Enable word wrap", group: "Editor", keywords: "wrap lines editor", run: () => state.setWordWrap(!state.wordWrap) },
       { id: "search-all", label: "Search all files", hint: "Ctrl Shift F", group: "Tools", keywords: "find replace regex project", run: () => state.setSearchOpen(true) },
       { id: "export", label: "Export pack as .zip", group: "Pack", keywords: "download save", run: state.exportZip },
       { id: "new-pack", label: "Add another pack", group: "Pack", keywords: "create datapack", run: () => state.addPack() },
@@ -87,7 +89,7 @@ export function CommandPalette() {
       });
     }
     return base;
-  }, [open, keybindings]);
+  }, [open, keybindings, wordWrap]);
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase();
@@ -103,7 +105,7 @@ export function CommandPalette() {
     setSelected(0);
     const timer = setTimeout(() => inputRef.current?.focus(), 20);
     return () => clearTimeout(timer);
-  }, [open, keybindings]);
+  }, [open, keybindings, wordWrap]);
 
   useEffect(() => {
     setSelected(0);
