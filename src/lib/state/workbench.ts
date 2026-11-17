@@ -980,9 +980,15 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       return false;
     }
     sim.permissionLevel = 0;
+    sim.world.tickFrozen = false;
     sim.world.logs = [];
     sim.world.touch();
-    set({ playerSession: { username: name }, joinOpen: false, recentCommands: [] });
+    set({
+      playerSession: { username: name },
+      joinOpen: false,
+      recentCommands: [],
+      tickPlaying: true,
+    });
     get().showToast(`Joined as ${name}`, "success");
     return true;
   },

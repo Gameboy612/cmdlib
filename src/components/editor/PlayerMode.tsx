@@ -7,6 +7,7 @@ import { WorldView } from "@/components/preview/WorldView";
 import { ConsolePanel } from "./panels";
 import { InventoryPanel } from "./InventoryPanel";
 import { ToastHost } from "./Toast";
+import { TimelineDriver } from "./TimelineDriver";
 import styles from "./player-mode.module.css";
 
 export function PlayerMode() {
@@ -110,6 +111,7 @@ export function PlayerMode() {
           </section>
         </aside>
       </main>
+      <TimelineDriver />
       <ToastHost />
     </div>
   );
