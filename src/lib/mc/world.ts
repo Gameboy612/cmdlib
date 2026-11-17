@@ -187,6 +187,7 @@ export class World {
         { isPlayer: true, username: options.playerName ?? "Dev" },
       );
       this.entities.push(player);
+      this.syncInventoryNbt(player);
     }
   }
 
@@ -551,6 +552,7 @@ export class World {
       this.playerStates.delete(oldKey);
       this.playerStates.set(username, state);
     }
+    this.syncInventoryNbt(player);
     this.touch();
     return true;
   }
@@ -976,8 +978,7 @@ export class World {
       ? this.entities.find((entry) => entry.username === target || entry.uuid === target)
       : target ?? this.player();
     if (!entity || !entity.isPlayer) return;
-    const state = this.playerState(entity);
-    if (!state) return;
+    const state = this.ensurePlayerState(entity);
     const slotNumber = (slot?: string): number | null => {
       if (!slot) return null;
       if (slot === "weapon.offhand") return -106;
@@ -1017,11 +1018,9 @@ export class World {
     const selectedItem = state.inventory.find(
       (item) => item.slot === `hotbar.${state.selectedSlot}`,
     );
-    if (selectedItem) {
-      entity.nbt.value.SelectedItem = Tag.compound(stackFields(selectedItem));
-    } else {
-      delete entity.nbt.value.SelectedItem;
-    }
+    entity.nbt.value.SelectedItem = selectedItem
+      ? Tag.compound(stackFields(selectedItem))
+      : Tag.compound();
   }
 
   /** Re-read inventory/ender chest after raw NBT edits such as /data modify. */

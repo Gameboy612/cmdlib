@@ -1,0 +1,31 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ executablePath: '/home/kapak/.cache/ms-playwright/chromium-1187/chrome-linux/chrome', args:['--no-sandbox'] });
+const page = await browser.newPage({ viewport:{width:1440,height:900} });
+const errors=[]; page.on('pageerror',e=>errors.push(e.message)); page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+await page.goto('http://127.0.0.1:4199/projects/', {waitUntil:'networkidle'});
+await page.waitForTimeout(700);
+const challengeVisible=await page.getByText('CUHKCTF26 Workshop Lab 1').isVisible().catch(()=>false);
+await page.getByRole('button',{name:/start challenge/i}).first().click();
+await page.waitForURL('**/editor/**', {timeout:30000});
+await page.waitForTimeout(1000);
+const modalVisible=await page.getByRole('dialog',{name:'CTF challenge'}).isVisible().catch(()=>false);
+const body=await page.locator('body').innerText();
+const secretLeak=body.includes('.secret')||body.includes('SERVER-donotread');
+const editable=await page.locator('.cm-content').first().getAttribute('contenteditable').catch(()=>null);
+// close modal
+await page.getByRole('dialog',{name:'CTF challenge'}).getByLabel('Close challenge').click();
+const input=page.getByLabel('Minecraft command');
+await input.fill('function cmdlib:load'); await input.press('Enter'); await page.waitForTimeout(200);
+const denied=await page.locator('body').innerText();
+await input.fill('trigger input set -102248'); await input.press('Enter'); await page.waitForTimeout(200);
+await input.fill('tick step 1'); await input.press('Enter'); await page.waitForTimeout(300);
+const afterTrigger=await page.locator('body').innerText();
+// modal flag
+await page.getByRole('button',{name:/challenge/i}).first().click(); await page.waitForTimeout(200);
+const flagInput=page.getByLabel('Flag');
+await flagInput.fill('wrong'); await page.getByRole('button',{name:'Submit'}).click(); await page.waitForTimeout(150);
+const wrongMsg=await page.locator('body').innerText();
+await flagInput.fill('test{fake_flag}'); await page.getByRole('button',{name:'Submit'}).click(); await page.waitForTimeout(200);
+const solvedMsg=await page.locator('body').innerText();
+console.log(JSON.stringify({challengeVisible,modalVisible,secretLeak,editable,permissionDenied:denied.includes('do not have permission'),triggerRan:afterTrigger.includes('Triggered'),wrong:wrongMsg.includes('not correct'),solved:solvedMsg.includes('Correct flag'),errors},null,2));
+await browser.close();

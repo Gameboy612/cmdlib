@@ -8,6 +8,7 @@ import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { CommandPalette } from "./CommandPalette";
 import { SearchPanel } from "./SearchPanel";
+import { CtfModal } from "./CtfModal";
 import { TimelineDriver } from "./TimelineDriver";
 import { Preferences } from "./Preferences";
 import { usePreferences } from "@/lib/state/preferences";
@@ -116,6 +117,7 @@ export function EditorShell() {
       <TimelineDriver />
       <CommandPalette />
       <SearchPanel />
+      <CtfModal />
       <Preferences open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
       <JoinPlayerDialog />
       <ToastHost />

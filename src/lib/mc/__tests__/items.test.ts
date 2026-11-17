@@ -113,6 +113,13 @@ describe("execute if items", () => {
 });
 
 describe("inventory NBT", () => {
+  it("exposes SelectedItem even before an item is given", () => {
+    const sim = new Simulator({ project: project() });
+    sim.reset();
+    expect(sim.world.player()?.nbt.value.SelectedItem?.type).toBe("compound");
+    expect(sim.runCommand("data get entity @s SelectedItem").ok).toBe(true);
+  });
+
   it("mirrors inventory and ender chest into player NBT", () => {
     const sim = new Simulator({ project: project() });
     sim.reset();

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkbench } from "@/lib/state/workbench";
 import { asset } from "@/lib/base-path";
+import { CTF_CHALLENGES } from "@/lib/ctf/challenges";
 import { ContextMenu, type ContextMenuEntry, type ContextMenuState } from "@/components/ui/ContextMenu";
 import styles from "./projects.module.css";
 
@@ -24,6 +25,7 @@ export function ProjectsPage() {
   const deletePackInProject = useWorkbench((state) => state.deletePackInProject);
   const importGithubProject = useWorkbench((state) => state.importGithubProject);
   const importProjectZip = useWorkbench((state) => state.importProjectZip);
+  const startChallenge = useWorkbench((state) => state.startChallenge);
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,10 @@ export function ProjectsPage() {
   const open = (id: string) => {
     openProject(id);
     router.push("/editor/");
+  };
+
+  const playChallenge = (id: string) => {
+    if (startChallenge(id)) router.push("/editor/");
   };
 
   const newProject = () => {
@@ -247,6 +253,38 @@ export function ProjectsPage() {
         </section>
 
         {projectError && <p className={styles.projectError}>{projectError}</p>}
+
+        <section className={styles.challenges} aria-label="Challenges">
+          <div className={styles.challengeHead}>
+            <div>
+              <p className={styles.eyebrow}>Challenges</p>
+              <h2>Play a CTF.</h2>
+            </div>
+            <p>
+              Read-only challenge workspaces. Inspect the public pack, use
+              player commands, and submit the flag.
+            </p>
+          </div>
+          <div className={styles.challengeGrid}>
+            {CTF_CHALLENGES.map((challenge) => (
+              <button
+                type="button"
+                key={challenge.id}
+                className={styles.challengeCard}
+                onClick={() => playChallenge(challenge.id)}
+              >
+                <span className={styles.challengeBadge}>CTF</span>
+                <strong>{challenge.title}</strong>
+                <p>{challenge.description}</p>
+                <span className={styles.challengeMeta}>
+                  {challenge.category} · difficulty {challenge.difficulty}
+                </span>
+                <span className={styles.challengeAction}>start challenge →</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className={styles.list} aria-label="Projects">
           {!hydrated && <p className={styles.empty}>Loading projects…</p>}
           {hydrated && projects.length === 0 && (

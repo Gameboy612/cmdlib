@@ -8,6 +8,8 @@ export interface WorkspaceProject {
   packs: Project[];
   activePackId: string;
   githubUrl?: string;
+  /** Challenge id when this workspace is a read-only CTF challenge. */
+  ctfChallengeId?: string;
   updatedAt: number;
 }
 

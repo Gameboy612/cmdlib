@@ -1,0 +1,13 @@
+import { chromium } from 'playwright-core';
+const browser = await chromium.launch({ executablePath: '/home/kapak/.cache/ms-playwright/chromium-1187/chrome-linux/chrome', args:['--no-sandbox'] });
+const page = await browser.newPage({ viewport:{width:1440,height:900} });
+const errors=[]; page.on('pageerror',e=>errors.push(e.message)); page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+await page.goto('http://127.0.0.1:4199/projects/', {waitUntil:'networkidle'});
+await page.waitForTimeout(700);
+const cards=await page.locator('button').allTextContents();
+await page.getByRole('button',{name:/start challenge/i}).first().click();
+await page.waitForURL('**/editor/**', {timeout:30000});
+await page.waitForTimeout(1000);
+await page.screenshot({path:'/tmp/ctf-start.png'});
+console.log(JSON.stringify({cards:cards.filter(x=>x.includes('challenge')),body:(await page.locator('body').innerText()).slice(0,1400),errors},null,2));
+await browser.close();

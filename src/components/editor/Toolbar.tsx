@@ -17,6 +17,8 @@ export function Toolbar() {
   const setTickPlaying = useWorkbench((state) => state.setTickPlaying);
   const sim = useWorkbench((state) => state.sim);
   const setJoinOpen = useWorkbench((state) => state.setJoinOpen);
+  const ctf = useWorkbench((state) => state.ctf);
+  const setCtfModalOpen = useWorkbench((state) => state.setCtfModalOpen);
   const workspace = useActiveWorkspace();
   const setPaletteOpen = useWorkbench((state) => state.setPaletteOpen);
   const [editing, setEditing] = useState(false);
@@ -42,7 +44,7 @@ export function Toolbar() {
             <span>/</span>
           </Link>
         )}
-        {editing ? (
+        {editing && !ctf ? (
           <input
             className={styles.projectInput}
             value={draft}
@@ -63,10 +65,14 @@ export function Toolbar() {
             type="button"
             className={styles.projectName}
             onClick={() => {
+              if (ctf) {
+                setCtfModalOpen(true);
+                return;
+              }
               setDraft(project.name);
               setEditing(true);
             }}
-            title="Rename pack"
+            title={ctf ? "Open challenge" : "Rename pack"}
           >
             {project.name}
           </button>
@@ -76,6 +82,7 @@ export function Toolbar() {
             value={project.versionId}
             onChange={(event) => setVersion(event.target.value)}
             aria-label="Target Minecraft version"
+            disabled={!!ctf}
           >
             {VERSIONS.map((entry) => (
               <option key={entry.id} value={entry.id}>
@@ -91,6 +98,16 @@ export function Toolbar() {
         <button type="button" className={styles.runButton} onClick={runLoad} title="Run /reload">
           <span aria-hidden>⟳</span> /reload
         </button>
+        {ctf && (
+          <button
+            type="button"
+            className={styles.joinButton}
+            onClick={() => setCtfModalOpen(true)}
+            title="Open the CTF challenge"
+          >
+            {ctf.solved ? "solved ✓" : "challenge"}
+          </button>
+        )}
         <button
           type="button"
           className={`${styles.playButton} ${tickPlaying ? styles.playButtonActive : ""}`}
@@ -123,14 +140,16 @@ export function Toolbar() {
         >
           ▶
         </button>
-        <button
-          type="button"
-          className={styles.joinButton}
-          onClick={() => setJoinOpen(true)}
-          title="Join the world as a player"
-        >
-          Join as player
-        </button>
+        {!ctf && (
+          <button
+            type="button"
+            className={styles.joinButton}
+            onClick={() => setJoinOpen(true)}
+            title="Join the world as a player"
+          >
+            Join as player
+          </button>
+        )}
         <button
           type="button"
           className={styles.paletteButton}

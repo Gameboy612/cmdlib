@@ -17,12 +17,14 @@ export function CodeEditor({
   onChange,
   onRun,
   onSave,
+  readOnly = false,
 }: {
   path: string;
   value: string;
   onChange: (value: string) => void;
   onRun: () => void;
   onSave: () => void;
+  readOnly?: boolean;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -72,6 +74,8 @@ export function CodeEditor({
       doc: value,
       extensions: [
         ...extensions,
+        EditorState.readOnly.of(readOnly),
+        EditorView.editable.of(!readOnly),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString());
@@ -92,7 +96,7 @@ export function CodeEditor({
       viewRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, isJson]);
+  }, [path, isJson, readOnly]);
 
   useEffect(() => {
     const view = viewRef.current;

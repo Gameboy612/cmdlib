@@ -130,6 +130,7 @@ export function ExplorerPanel() {
   const lintReport = useWorkbench((state) => state.lintReport);
   const showToast = useWorkbench((state) => state.showToast);
   const version = getVersion(project.versionId);
+  const ctf = useWorkbench((state) => state.ctf);
   const tree = useMemo(() => buildTree(project.files), [project.files]);
   const unusedPaths = useMemo(
     () =>
@@ -221,6 +222,7 @@ export function ExplorerPanel() {
     folder?: string,
     tagKind: TagKind = "function",
   ) => {
+    if (ctf) return;
     if (folder) {
       setCollapsed((current) => {
         if (!current.has(folder)) return current;
@@ -255,6 +257,7 @@ export function ExplorerPanel() {
   const addFile = (folder?: string) => beginCreate("file", folder);
 
   const packMenu = (event: React.MouseEvent, packId: string, name: string) => {
+    if (ctf) return;
     openMenu(event, [
       { label: "Select pack", onSelect: () => selectPack(packId) },
       {
@@ -295,9 +298,12 @@ export function ExplorerPanel() {
     createFile(candidate, project.files[path] ?? "");
   };
 
-  const requestDelete = (path: string) => setDraft({ mode: "delete", path });
-  const requestRename = (path: string) =>
-    setDraft({ mode: "rename", path, value: path });
+  const requestDelete = (path: string) => {
+    if (!ctf) setDraft({ mode: "delete", path });
+  };
+  const requestRename = (path: string) => {
+    if (!ctf) setDraft({ mode: "rename", path, value: path });
+  };
 
   const commitDraft = () => {
     if (!draft) return;
@@ -368,6 +374,7 @@ export function ExplorerPanel() {
   };
 
   const moveToFolder = (from: string, folder: string) => {
+    if (ctf) return;
     const name = from.split("/").pop();
     if (!name) return;
     const to = folder ? `${folder}/${name}` : name;
@@ -384,6 +391,7 @@ export function ExplorerPanel() {
   };
 
   const fileMenu = (event: React.MouseEvent, path: string) => {
+    if (ctf) return;
     openFile(path);
     openMenu(event, [
       { label: "Open", onSelect: () => openFile(path) },
@@ -400,6 +408,7 @@ export function ExplorerPanel() {
   };
 
   const folderMenu = (event: React.MouseEvent, path: string) => {
+    if (ctf) return;
     const isFunctionFolder = path.endsWith(`/${version.functionFolder}`);
     const isTagFolder = path.endsWith(`/${version.tagFolder}`);
     openMenu(event, [
@@ -543,8 +552,9 @@ export function ExplorerPanel() {
           title={unused ? "Function is never called by this pack" : undefined}
           style={{ paddingLeft: 8 + depth * 13 }}
           onClick={() => openFile(node.path)}
-          draggable
+          draggable={!ctf}
           onDragStart={(event) => {
+            if (ctf) return;
             event.dataTransfer.setData("text/plain", node.path);
             event.dataTransfer.effectAllowed = "move";
             setDragPath(node.path);
@@ -575,14 +585,14 @@ export function ExplorerPanel() {
           </span>
           <span className={styles.treeName}>{node.name}</span>
           {unused && <span className={styles.treeWarn} aria-label="Unused function">△</span>}
-          <span className={styles.treeActions}>
+          {!ctf && <span className={styles.treeActions}>
             <button type="button" aria-label={`Rename ${node.path}`} onClick={(event) => { event.stopPropagation(); requestRename(node.path); }}>
               ✎
             </button>
             <button type="button" aria-label={`Delete ${node.path}`} onClick={(event) => { event.stopPropagation(); requestDelete(node.path); }}>
               ×
             </button>
-          </span>
+          </span>}
         </div>
       );
     }
@@ -706,14 +716,15 @@ export function ExplorerPanel() {
           });
           setVisibleFolder(current || activeFolder);
         }}
-        onContextMenu={(event) =>
+        onContextMenu={(event) => {
+          if (ctf) return;
           openMenu(event, [
             { label: "New function…", onSelect: () => addFunction() },
             { label: "New file…", onSelect: () => addFile() },
             { label: "New tag…", onSelect: () => addTag() },
             { label: "New predicate…", onSelect: () => beginCreate("predicate") },
-          ])
-        }
+          ]);
+        }}
         onDragOver={(event) => {
           if (!dragPath) return;
           event.preventDefault();
@@ -728,12 +739,14 @@ export function ExplorerPanel() {
         {renderNode(tree, 0)}
       </div>
       <div className={styles.explorerFoot}>
-        <span className={styles.explorerActions}>
-          <button type="button" onClick={() => addFunction()}>+ function</button>
-          <button type="button" onClick={() => addFile()}>+ file</button>
-          <button type="button" onClick={() => addTag()}>+ tag</button>
-          <button type="button" onClick={() => addPack()}>+ pack</button>
-        </span>
+        {!ctf && (
+          <span className={styles.explorerActions}>
+            <button type="button" onClick={() => addFunction()}>+ function</button>
+            <button type="button" onClick={() => addFile()}>+ file</button>
+            <button type="button" onClick={() => addTag()}>+ tag</button>
+            <button type="button" onClick={() => addPack()}>+ pack</button>
+          </span>
+        )}
         <span>{formatPackFormat(version.packFormat)}</span>
       </div>
       <ContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} />
@@ -752,6 +765,7 @@ export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
   const updateFile = useWorkbench((state) => state.updateFile);
   const runActive = useWorkbench((state) => state.runActive);
   const showToast = useWorkbench((state) => state.showToast);
+  const ctf = useWorkbench((state) => state.ctf);
   const content = project.files[activePath];
   const tabs = openTabs.filter((path) => path in project.files);
 
@@ -808,7 +822,9 @@ export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
             onChange={(next) => updateFile(activePath, next)}
             onRun={runActive}
             onSave={() => showToast("Saved to this browser", "success")}
+            readOnly={!!ctf}
           />
+          {!ctf && (
           <button
             type="button"
             className={styles.editorRun}
@@ -818,6 +834,7 @@ export function CodePanel({ panelApi }: { panelApi?: DockviewPanelApi }) {
           >
             <span aria-hidden>▶</span> Run file
           </button>
+          )}
         </div>
       )}
     </div>
