@@ -140,7 +140,7 @@ export default function FeaturesPage() {
             <span><b>Versions</b> 1.13 – 26.3</span>
             <span><b>Runtime commands</b> 28</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 179 passing</span>
+            <span><b>Tests</b> 180 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

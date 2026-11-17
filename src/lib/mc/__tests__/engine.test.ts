@@ -5,7 +5,7 @@ import { isCompound, stringifySnbt, Tag } from "../nbt";
 import { createDemoProject } from "./fixtures";
 import { Simulator } from "../simulator";
 import { entityPos } from "../entities";
-import { getVersion } from "../version";
+import { buildPackMeta, getVersion } from "../version";
 import { parseTextComponent } from "../snbt";
 import { plainText, renderTextComponent } from "../text";
 
@@ -751,5 +751,21 @@ describe("scoreboard negative division", () => {
     sim.runCommand("scoreboard players set #a math 5");
     sim.runCommand("scoreboard players operation #a math %= #b math");
     expect(sim.world.getScore("#a", "math")).toBe(-1);
+  });
+});
+
+describe("1.21.11 profile", () => {
+  it("uses the 94.1 pack format and modern folders", () => {
+    const version = getVersion("1.21.11");
+    expect(version.packFormat).toEqual([94, 1]);
+    expect(version.protocol).toBe(774);
+    expect(version.dataVersion).toBe(4671);
+    expect(version.functionFolder).toBe("function");
+    expect(version.packMeta).toBe("minmax");
+    const meta = JSON.parse(buildPackMeta(version, "Test")) as {
+      pack: { min_format: number[]; max_format: number[] };
+    };
+    expect(meta.pack.min_format).toEqual([94, 1]);
+    expect(meta.pack.max_format).toEqual([94, 1]);
   });
 });

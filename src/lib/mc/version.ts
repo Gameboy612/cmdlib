@@ -94,6 +94,10 @@ export const VERSIONS: VersionProfile[] = [
     notes:
       "Adds /compute, /posteffect, data modify … compute, and execute if slots. cmdlib targets this release.",
   }),
+  profile("1.21.11", "1.21.11", "2025-12-09", [94, 1], {
+    dataVersion: 4671,
+    protocol: 774,
+  }),
   profile("1.21.10", "1.21.9 – 1.21.10", "2025-10-07", [88, 0], {}),
   profile("1.21.8", "1.21.8", "2025-07-17", [81, 0], {}),
   profile("1.21.7", "1.21.7", "2025-06-30", [81, 0], {}),
