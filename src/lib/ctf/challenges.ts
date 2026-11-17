@@ -90,14 +90,69 @@ function flagFromFiles(files: Record<string, string>): {
   return { flag: "", path: ".secret/flag.txt" };
 }
 
+const CTF_CACHE_KEY = "cmdlib:ctf-cache:v1";
+const CTF_CACHE_MAX_AGE = 10 * 60 * 1000;
+const challengeCache = new Map<string, { at: number; challenge: CtfChallenge }>();
+
+function readCachedChallenge(id: string): CtfChallenge | null {
+  const memory = challengeCache.get(id);
+  if (memory && Date.now() - memory.at < CTF_CACHE_MAX_AGE) return memory.challenge;
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(CTF_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, { at: number; challenge: CtfChallenge }>;
+    const cached = parsed[id];
+    if (!cached || Date.now() - cached.at > CTF_CACHE_MAX_AGE) return null;
+    challengeCache.set(id, cached);
+    return cached.challenge;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedChallenge(id: string, challenge: CtfChallenge): void {
+  const entry = { at: Date.now(), challenge };
+  challengeCache.set(id, entry);
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.sessionStorage.getItem(CTF_CACHE_KEY);
+    const parsed: Record<string, { at: number; challenge: CtfChallenge }> = raw
+      ? JSON.parse(raw)
+      : {};
+    parsed[id] = entry;
+    window.sessionStorage.setItem(CTF_CACHE_KEY, JSON.stringify(parsed));
+  } catch {
+    // Session storage is only a convenience cache.
+  }
+}
+
 /** Pull a challenge's public files, server pack and flag from its repository. */
 export async function fetchCtfChallenge(id: string): Promise<CtfChallenge> {
   const source = getCtfChallengeSource(id);
   if (!source) throw new Error(`Unknown challenge '${id}'`);
-  const repo = await fetchGithubRepositoryFiles(
-    source.repoUrl,
-    (path) => path.startsWith("public/") || path.startsWith(".secret/"),
-  );
+  const cached = readCachedChallenge(id);
+  if (cached) return cached;
+  let repo;
+  try {
+    repo = await fetchGithubRepositoryFiles(
+      source.repoUrl,
+      (path) => path.startsWith("public/") || path.startsWith(".secret/"),
+    );
+  } catch (error) {
+    // GitHub can transiently rate-limit the tree or raw requests. Retry once
+    // before surfacing the failure to the challenge page.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    try {
+      repo = await fetchGithubRepositoryFiles(
+        source.repoUrl,
+        (path) => path.startsWith("public/") || path.startsWith(".secret/"),
+      );
+    } catch {
+      if (cached) return cached;
+      throw error;
+    }
+  }
   const pub = publicFiles(repo.files);
   const server = serverFiles(repo.files);
   if (Object.keys(pub).length === 0) {
@@ -107,7 +162,7 @@ export async function fetchCtfChallenge(id: string): Promise<CtfChallenge> {
     throw new Error(`Challenge '${source.title}' has no server datapack`);
   }
   const flag = flagFromFiles(repo.files);
-  return {
+  const challenge: CtfChallenge = {
     ...source,
     repoUrl: repo.url,
     publicFiles: pub,
@@ -116,4 +171,6 @@ export async function fetchCtfChallenge(id: string): Promise<CtfChallenge> {
     flagPath: flag.path,
     flagFileContent: flag.flag,
   };
+  writeCachedChallenge(id, challenge);
+  return challenge;
 }
