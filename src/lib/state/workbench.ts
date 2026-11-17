@@ -702,7 +702,9 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   runLoad: () => {
     const project = get().project;
     const sim = get().sim;
-    sim.setProject(project);
+    // In CTF mode the simulator owns the hidden .secret server pack. Never
+    // replace it with the public read-only pack when reloading.
+    if (!get().ctf) sim.setProject(project);
     sim.reset();
     sim.world.log("command", "/reload");
     sim.world.log("system", "Reloaded functions and ran load tags");
