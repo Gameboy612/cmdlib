@@ -43,8 +43,8 @@ export function ProjectsPage() {
     router.push("/editor/");
   };
 
-  const playChallenge = (id: string) => {
-    if (startChallenge(id)) router.push("/editor/");
+  const playChallenge = async (id: string) => {
+    if (await startChallenge(id)) router.push("/editor/");
   };
 
   const newProject = () => {
@@ -271,7 +271,7 @@ export function ProjectsPage() {
                 type="button"
                 key={challenge.id}
                 className={styles.challengeCard}
-                onClick={() => playChallenge(challenge.id)}
+                onClick={() => void playChallenge(challenge.id)}
               >
                 <span className={styles.challengeBadge}>CTF</span>
                 <strong>{challenge.title}</strong>

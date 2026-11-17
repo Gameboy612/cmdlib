@@ -1,19 +1,30 @@
-export interface CtfChallenge {
+import { fetchGithubRepositoryFiles } from "../github";
+
+export interface CtfChallengeSource {
   id: string;
   title: string;
   description: string;
   category: string;
   difficulty: string;
   repoUrl: string;
+  hint: string;
+}
+
+export interface CtfChallenge extends CtfChallengeSource {
   /** Files the player is allowed to inspect. */
   publicFiles: Record<string, string>;
   /** Server-side files loaded into the simulator; never shown in the UI. */
   serverFiles: Record<string, string>;
-  /** Expected flag, read from .secret/flag.txt when available. */
+  /** Expected flag, read from .secret/flag.txt. */
   flag: string;
+  /** Secret flag file path, never shown in the project tree. */
+  flagPath: string;
+  /** Raw contents of the flag file used to resolve `flag`. */
+  flagFileContent?: string;
 }
 
-export const CTF_CHALLENGES: CtfChallenge[] = [
+/** Challenge metadata only; files are fetched from the linked repository. */
+export const CTF_CHALLENGES: CtfChallengeSource[] = [
   {
     id: "cuhkctf26-lab1",
     title: "CUHKCTF26 Workshop Lab 1",
@@ -22,33 +33,92 @@ export const CTF_CHALLENGES: CtfChallenge[] = [
     category: "Reverse Engineering",
     difficulty: "1 / 5",
     repoUrl: "https://github.com/Gameboy612/CUHKCTF26-Workshop-CMDLab1",
-    flag: "test{fake_flag}",
-    publicFiles: {
-  "README.md": "All files under this folder could be inspected.",
-  "CUHKCTF26-Workshop-Lab1/pack.mcmeta": "{\n  \"pack\": {\n    \"description\": \"CUHKCTF26-Workshop-Lab1\",\n    \"min_format\": [\n      121,\n      0\n    ],\n    \"max_format\": [\n      121,\n      0\n    ]\n  }\n}",
-  "CUHKCTF26-Workshop-Lab1/data/secret/function/print_flag.mcfunction": "# This file is kept secret from the player, it will not be sent as part of the challenge\n\ntellraw @s [{\"text\": \"Congratulations! Here is your flag: \", \"color\": \"gold\"}, {\"text\": \"test{fake_flag}\", \"color\": \"aqua\"}]\n\n",
-  "CUHKCTF26-Workshop-Lab1/data/cmdlib/function/tick.mcfunction": "# Runs once every game tick.\n\nscoreboard players enable @a input\nexecute as @a unless score @s input matches 0 run scoreboard players operation #input sqrt = @s input\nexecute as @a unless score @s input matches 0 run function cmdlib:sqrt/calc\nexecute as @a unless score @s input matches 0 run scoreboard players set @s input 0\n",
-  "CUHKCTF26-Workshop-Lab1/data/cmdlib/function/load.mcfunction": "\nscoreboard objectives add input trigger\n\n# Runs once when the pack is loaded.\nscoreboard objectives add sqrt dummy\nscoreboard players set #2 sqrt 2\nscoreboard players set #10 sqrt 10\nscoreboard players set #100 sqrt 100",
-  "CUHKCTF26-Workshop-Lab1/data/cmdlib/function/sqrt/calc.mcfunction": "\n# 0 <= #input <= 214748\n# $scoreboard players set #input sqrt $(val)\nscoreboard players operation #input sqrt *= #100 sqrt\nscoreboard players operation #input sqrt *= #100 sqrt\nscoreboard players set #xn sqrt 1\nscoreboard players set #loop sqrt 20\nfunction cmdlib:sqrt/loop\n\n# Flag here!\nexecute if score #xn sqrt matches -6300 run function secret:print_flag\n\nscoreboard players operation #xint sqrt = #xn sqrt\nscoreboard players operation #xdec1 sqrt = #xn sqrt\nscoreboard players operation #xdec2 sqrt = #xn sqrt\nscoreboard players operation #xint sqrt /= #100 sqrt\nscoreboard players operation #xdec1 sqrt %= #100 sqrt\nscoreboard players operation #xdec1 sqrt /= #10 sqrt\nscoreboard players operation #xdec2 sqrt %= #100 sqrt\nscoreboard players operation #xdec2 sqrt %= #10 sqrt\ntellraw @s [{\"text\":\"sqrt: \"},{\"score\":{\"objective\":\"sqrt\",\"name\":\"#xint\"}},{\"text\": \".\"},{\"score\":{\"objective\":\"sqrt\",\"name\":\"#xdec1\"}},{\"score\":{\"objective\":\"sqrt\",\"name\":\"#xdec2\"}}]\n\n\n# INPUT: scoreboard players set #input sqrt <x>\n",
-  "CUHKCTF26-Workshop-Lab1/data/cmdlib/function/sqrt/loop.mcfunction": "\nscoreboard players operation #a sqrt = #xn sqrt\nscoreboard players operation #a sqrt /= #2 sqrt\nscoreboard players operation #b sqrt = #input sqrt\nscoreboard players operation #b sqrt /= #xn sqrt\nscoreboard players operation #b sqrt /= #2 sqrt\nscoreboard players operation #xn sqrt -= #a sqrt\nscoreboard players operation #xn sqrt += #b sqrt\n\nscoreboard players remove #loop sqrt 1\nexecute if score #loop sqrt matches 1.. run function cmdlib:sqrt/loop",
-  "CUHKCTF26-Workshop-Lab1/data/minecraft/tags/function/load.json": "{\n  \"values\": [\n    \"cmdlib:load\"\n  ]\n}\n",
-  "CUHKCTF26-Workshop-Lab1/data/minecraft/tags/function/tick.json": "{\n  \"values\": [\n    \"cmdlib:tick\"\n  ]\n}\n"
-},
-    serverFiles: {
-  "pack.mcmeta": "{\n  \"pack\": {\n    \"description\": \"CUHKCTF26-Workshop-Lab1\",\n    \"min_format\": [\n      121,\n      0\n    ],\n    \"max_format\": [\n      121,\n      0\n    ]\n  }\n}",
-  "data/secret/function/print_flag.mcfunction": "# This file is kept secret from the player, it will not be sent as part of the challenge\n\ntellraw @s [{\"text\": \"Congratulations! Here is your flag: \", \"color\": \"gold\"}, {\"text\": \"test{fake_flag}\", \"color\": \"aqua\"}]\n\n",
-  "data/cmdlib/function/tick.mcfunction": "# Runs once every game tick.\n\nscoreboard players enable @a input\nexecute as @a unless score @s input matches 0 run scoreboard players operation #input sqrt = @s input\nexecute as @a unless score @s input matches 0 run function cmdlib:sqrt/calc\nexecute as @a unless score @s input matches 0 run scoreboard players set @s input 0\n",
-  "data/cmdlib/function/load.mcfunction": "\nscoreboard objectives add input trigger\n\n# Runs once when the pack is loaded.\nscoreboard objectives add sqrt dummy\nscoreboard players set #2 sqrt 2\nscoreboard players set #10 sqrt 10\nscoreboard players set #100 sqrt 100",
-  "data/cmdlib/function/sqrt/calc.mcfunction": "\n# 0 <= #input <= 214748\n# $scoreboard players set #input sqrt $(val)\nscoreboard players operation #input sqrt *= #100 sqrt\nscoreboard players operation #input sqrt *= #100 sqrt\nscoreboard players set #xn sqrt 1\nscoreboard players set #loop sqrt 20\nfunction cmdlib:sqrt/loop\n\n# Flag here!\nexecute if score #xn sqrt matches -6300 run function secret:print_flag\n\nscoreboard players operation #xint sqrt = #xn sqrt\nscoreboard players operation #xdec1 sqrt = #xn sqrt\nscoreboard players operation #xdec2 sqrt = #xn sqrt\nscoreboard players operation #xint sqrt /= #100 sqrt\nscoreboard players operation #xdec1 sqrt %= #100 sqrt\nscoreboard players operation #xdec1 sqrt /= #10 sqrt\nscoreboard players operation #xdec2 sqrt %= #100 sqrt\nscoreboard players operation #xdec2 sqrt %= #10 sqrt\ntellraw @s [{\"text\":\"sqrt: \"},{\"score\":{\"objective\":\"sqrt\",\"name\":\"#xint\"}},{\"text\": \".\"},{\"score\":{\"objective\":\"sqrt\",\"name\":\"#xdec1\"}},{\"score\":{\"objective\":\"sqrt\",\"name\":\"#xdec2\"}}]\n\n\n# INPUT: scoreboard players set #input sqrt <x>\n",
-  "data/cmdlib/function/sqrt/loop.mcfunction": "\nscoreboard players operation #a sqrt = #xn sqrt\nscoreboard players operation #a sqrt /= #2 sqrt\nscoreboard players operation #b sqrt = #input sqrt\nscoreboard players operation #b sqrt /= #xn sqrt\nscoreboard players operation #b sqrt /= #2 sqrt\nscoreboard players operation #xn sqrt -= #a sqrt\nscoreboard players operation #xn sqrt += #b sqrt\n\nscoreboard players remove #loop sqrt 1\nexecute if score #loop sqrt matches 1.. run function cmdlib:sqrt/loop",
-  "data/minecraft/tags/function/load.json": "{\n  \"values\": [\n    \"cmdlib:load\"\n  ]\n}\n",
-  "data/minecraft/tags/function/tick.json": "{\n  \"values\": [\n    \"cmdlib:tick\"\n  ]\n}\n"
-},
+    hint: "Use /trigger input set <value>, then run the timeline.",
+  },
+  {
+    id: "cuhkctf26-lab2",
+    title: "CUHKCTF26 Workshop Lab 2",
+    description:
+      "A macro-injection challenge. Inspect the public pack and find a creative item payload that leaks the flag.",
+    category: "Reverse Engineering · Macro Injection",
+    difficulty: "2 / 5",
+    repoUrl: "https://github.com/Gameboy612/CUHKCTF26-Workshop-CMDLab2",
+    hint: "The server puts you in creative mode. Give yourself an item with custom_data and run the timeline.",
   },
 ];
 
-export function getCtfChallenge(id: string): CtfChallenge | undefined {
+export function getCtfChallengeSource(id: string): CtfChallengeSource | undefined {
   return CTF_CHALLENGES.find((challenge) => challenge.id === id);
 }
 
 export const DEFAULT_CTF_CHALLENGE = CTF_CHALLENGES[0];
+
+function publicFiles(files: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, content] of Object.entries(files)) {
+    if (path.startsWith("public/")) out[path.slice("public/".length)] = content;
+  }
+  return out;
+}
+
+function serverFiles(files: Record<string, string>): Record<string, string> {
+  const roots = Object.keys(files)
+    .filter((path) => path.startsWith(".secret/") && path.endsWith("/pack.mcmeta"))
+    .map((path) => path.slice(0, -"pack.mcmeta".length))
+    .sort((a, b) => a.length - b.length);
+  const root = roots[0];
+  if (!root) return {};
+  const out: Record<string, string> = {};
+  for (const [path, content] of Object.entries(files)) {
+    if (path.startsWith(root)) out[path.slice(root.length)] = content;
+  }
+  return out;
+}
+
+function flagFromFiles(files: Record<string, string>): {
+  flag: string;
+  path: string;
+} {
+  const direct = files[".secret/flag.txt"];
+  if (direct !== undefined) return { flag: direct.trim(), path: ".secret/flag.txt" };
+  const matchingPath = Object.keys(files).find(
+    (path) => path.startsWith(".secret/") && path.endsWith("/flag.txt"),
+  );
+  if (matchingPath) {
+    return { flag: (files[matchingPath] ?? "").trim(), path: matchingPath };
+  }
+  for (const [path, content] of Object.entries(files)) {
+    if (!path.startsWith(".secret/") || !path.endsWith(".mcfunction")) continue;
+    const match = content.match(/(?:cuhkctf|flag|ctf)[a-z0-9_]*\{[^}\n]+\}/i);
+    if (match) return { flag: match[0], path };
+  }
+  return { flag: "test{fake_flag}", path: ".secret/flag.txt" };
+}
+
+/** Pull a challenge's public files, server pack and flag from its repository. */
+export async function fetchCtfChallenge(id: string): Promise<CtfChallenge> {
+  const source = getCtfChallengeSource(id);
+  if (!source) throw new Error(`Unknown challenge '${id}'`);
+  const repo = await fetchGithubRepositoryFiles(
+    source.repoUrl,
+    (path) => path.startsWith("public/") || path.startsWith(".secret/"),
+  );
+  const pub = publicFiles(repo.files);
+  const server = serverFiles(repo.files);
+  if (Object.keys(pub).length === 0) {
+    throw new Error(`Challenge '${source.title}' has no public files`);
+  }
+  if (Object.keys(server).length === 0) {
+    throw new Error(`Challenge '${source.title}' has no server datapack`);
+  }
+  const flag = flagFromFiles(repo.files);
+  return {
+    ...source,
+    repoUrl: repo.url,
+    publicFiles: pub,
+    serverFiles: server,
+    flag: flag.flag,
+    flagPath: flag.path,
+    flagFileContent: flag.flag,
+  };
+}

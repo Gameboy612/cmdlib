@@ -8,6 +8,8 @@ import type { CommandContext, CommandResult, Runtime } from "./commands/context"
 import { parseDatapack, type Project } from "./datapack";
 import { parsePredicateFiles } from "./predicates";
 import { parseAdvancementFiles } from "./advancements";
+import { itemComponentsMatch } from "./items";
+import { jsonToTag } from "./snbt";
 import { parseItemModifierFiles } from "./item_modifiers";
 import { getVersion, type VersionProfile } from "./version";
 import { macroValueToString } from "./commands/function";
@@ -400,10 +402,17 @@ export class Simulator implements Runtime {
   }
 
   /** Run one console line. Errors are logged, not thrown. */
-  runCommand(line: string, options: { quiet?: boolean } = {}): RunOutcome {
+  runCommand(
+    line: string,
+    options: { quiet?: boolean; bypassPermissions?: boolean } = {},
+  ): RunOutcome {
     const commandName = line.trim().replace(/^\//, "").split(/\s+/, 1)[0]?.toLowerCase() ?? "";
     const playerCommands = new Set(["help", "list", "me", "trigger"]);
-    if (this.permissionLevel === 0 && !playerCommands.has(commandName)) {
+    if (
+      this.permissionLevel === 0 &&
+      !options.bypassPermissions &&
+      !playerCommands.has(commandName)
+    ) {
       const message = `You do not have permission to use /${commandName || "that command"} (permission level 0).`;
       this.world.log("error", message);
       this.world.touch();

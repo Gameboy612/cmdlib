@@ -81,8 +81,11 @@ export function CtfModal() {
           )}
           {error && <p className={styles.error}>{error}</p>}
           <p className={styles.hint}>
-            Public files only. Use player commands such as{" "}
-            <code>/trigger input set &lt;value&gt;</code>, then run the timeline.
+            You can inspect only public files. Commands run as a normal player.
+            The submitted flag is checked against{" "}
+            <code>.secret/flag.txt</code>.
+            <br />
+            {ctf.hint}
           </p>
           <div className={styles.links}>
             <button type="button" className={styles.close} onClick={() => setOpen(false)}>

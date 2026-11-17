@@ -18,7 +18,11 @@ import { lintProject, type LintQuickFix, type LintReport } from "../lint";
 import { buildPackMeta, functionPath, getVersion, migrateFiles } from "../mc/version";
 import { downloadProject, readProjectArchive, readProjectZip } from "../io";
 import { importGithubDatapacks } from "../github";
-import { getCtfChallenge, type CtfChallenge } from "../ctf/challenges";
+import {
+  fetchCtfChallenge,
+  getCtfChallengeSource,
+  type CtfChallenge,
+} from "../ctf/challenges";
 
 const PROJECTS_KEY = "cmdlib:projects:v1";
 const LEGACY_PROJECT_KEY = "cmdlib:project:v2";
@@ -42,6 +46,7 @@ export interface CtfSession {
   difficulty: string;
   repoUrl: string;
   flag: string;
+  hint: string;
   solved: boolean;
 }
 
@@ -82,7 +87,7 @@ interface WorkbenchState {
   panelRequest: { id: string; nonce: number } | null;
   explorerCreate: ExplorerCreateRequest | null;
 
-  hydrate: () => void;
+  hydrate: () => Promise<void>;
   setProject: (project: Project) => void;
   setProjectName: (name: string) => void;
   setPackName: (packId: string, name: string) => void;
@@ -109,6 +114,7 @@ interface WorkbenchState {
   runLoad: () => void;
   runActive: () => void;
   runCommand: (line: string) => void;
+  runCreativeCommand: (line: string) => void;
   clearConsole: () => void;
   applyQuickFix: (fix: LintQuickFix) => void;
   importZip: (file: File) => Promise<void>;
@@ -118,7 +124,7 @@ interface WorkbenchState {
   showToast: (message: string, kind?: Toast["kind"]) => void;
   setPaletteOpen: (open: boolean) => void;
   setSearchOpen: (open: boolean) => void;
-  startChallenge: (id: string) => boolean;
+  startChallenge: (id: string) => Promise<boolean>;
   setCtfModalOpen: (open: boolean) => void;
   submitFlag: (flag: string) => boolean;
   setTickPlaying: (playing: boolean) => void;
@@ -141,6 +147,7 @@ interface WorkbenchState {
   requestExplorerCreate: (request: Omit<ExplorerCreateRequest, "nonce">) => void;
 }
 
+let hydrating = false;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let lintTimer: ReturnType<typeof setTimeout> | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -414,7 +421,8 @@ function makeCtfSession(challenge: CtfChallenge): CtfSession {
     category: challenge.category,
     difficulty: challenge.difficulty,
     repoUrl: challenge.repoUrl,
-    flag: challenge.flag,
+    flag: (challenge.flagFileContent ?? challenge.flag).trim(),
+    hint: challenge.hint,
     solved: readSolvedChallenges().has(challenge.id),
   };
 }
@@ -450,48 +458,73 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   panelRequest: null,
   explorerCreate: null,
 
-  hydrate: () => {
-    if (get().hydrated) return;
-    const stored = readStoredWorkspaces();
-    const projects = stored?.projects ?? get().projects;
-    const activeProjectId = stored?.activeProjectId ?? get().activeProjectId;
-    const workspace =
-      projects.find((entry) => entry.id === activeProjectId) ?? projects[0];
-    const project = activePackOf(workspace);
-    const challenge = workspace.ctfChallengeId
-      ? getCtfChallenge(workspace.ctfChallengeId)
-      : undefined;
-    const sim = new Simulator({
-      project: challenge ? ctfServerProject(challenge) : project,
-    });
-    if (challenge) {
-      sim.permissionLevel = 0;
-      sim.contextProjects = [];
-    } else {
-      sim.contextProjects = workspace.packs.filter((pack) => pack.id !== project.id);
+  hydrate: async () => {
+    if (get().hydrated || hydrating) return;
+    hydrating = true;
+    try {
+      const stored = readStoredWorkspaces();
+      const projects = stored?.projects ?? get().projects;
+      const activeProjectId = stored?.activeProjectId ?? get().activeProjectId;
+      const workspace =
+        projects.find((entry) => entry.id === activeProjectId) ?? projects[0];
+      let project = activePackOf(workspace);
+      let hydratedProjects = projects;
+      let challenge: CtfChallenge | undefined;
+      if (workspace.ctfChallengeId) {
+        try {
+          challenge = await fetchCtfChallenge(workspace.ctfChallengeId);
+          const pack = ctfPublicPack(challenge);
+          project = pack;
+          const refreshed: WorkspaceProject = {
+            ...workspace,
+            packs: [pack],
+            activePackId: pack.id,
+            updatedAt: Date.now(),
+          };
+          hydratedProjects = projects.map((entry) =>
+            entry.id === workspace.id ? refreshed : entry,
+          );
+        } catch (error) {
+          get().showToast(
+            `Challenge files could not be loaded: ${(error as Error).message}`,
+            "error",
+          );
+        }
+      }
+      const sim = new Simulator({
+        project: challenge ? ctfServerProject(challenge) : project,
+      });
+      if (challenge) {
+        sim.permissionLevel = 0;
+        sim.contextProjects = [];
+      } else {
+        sim.contextProjects = workspace.packs.filter((pack) => pack.id !== project.id);
+      }
+      sim.reset();
+      const layoutJson =
+        typeof window !== "undefined" ? window.localStorage.getItem(LAYOUT_KEY) : null;
+      set({
+        projects: hydratedProjects,
+        activeProjectId: workspace.id,
+        project,
+        sim,
+        activePath: project.activePath,
+        openTabs: project.activePath ? [project.activePath] : [],
+        ctf: challenge ? makeCtfSession(challenge) : null,
+        ctfModalOpen: false,
+        playerSession: challenge ? null : get().playerSession,
+        lintReport: challenge
+          ? { ...emptyLint, versionId: project.versionId }
+          : lintActivePack(project, hydratedProjects, workspace.id),
+        hydrated: true,
+        booting: false,
+        layoutJson,
+        recentCommands: readHistory(),
+      });
+      sim.touch();
+    } finally {
+      hydrating = false;
     }
-    sim.reset();
-    const layoutJson =
-      typeof window !== "undefined" ? window.localStorage.getItem(LAYOUT_KEY) : null;
-    set({
-      projects,
-      activeProjectId: workspace.id,
-      project,
-      sim,
-      activePath: project.activePath,
-      openTabs: project.activePath ? [project.activePath] : [],
-      ctf: challenge ? makeCtfSession(challenge) : null,
-      ctfModalOpen: false,
-      playerSession: challenge ? null : get().playerSession,
-      lintReport: challenge
-        ? { ...emptyLint, versionId: project.versionId }
-        : lintActivePack(project, projects, workspace.id),
-      hydrated: true,
-      booting: false,
-      layoutJson,
-      recentCommands: readHistory(),
-    });
-    sim.touch();
   },
 
   setProject: (project) => {
@@ -710,6 +743,19 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     }
   },
 
+  runCreativeCommand: (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const sim = get().sim;
+    sim.world.log("command", `/${trimmed}`);
+    sim.runCommand(trimmed, { bypassPermissions: true });
+    const history = [
+      trimmed,
+      ...get().recentCommands.filter((entry) => entry !== trimmed),
+    ].slice(0, 30);
+    set({ recentCommands: history });
+  },
+
   clearConsole: () => {
     const sim = get().sim;
     sim.world.logs = [];
@@ -788,6 +834,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     const workspace = get().projects.find((entry) => entry.id === activeProjectId);
     const pack = workspace?.packs.find((entry) => entry.id === id);
     if (!workspace || !pack) return;
+    if (workspace.ctfChallengeId) {
+      get().startChallenge(workspace.ctfChallengeId);
+      return;
+    }
     const nextWorkspace: WorkspaceProject = {
       ...workspace,
       activePackId: pack.id,
@@ -799,6 +849,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     const sim = get().sim;
     sim.project = pack;
     sim.version = getVersion(pack.versionId);
+    sim.permissionLevel = 2;
     sim.contextProjects = nextWorkspace.packs.filter((entry) => entry.id !== pack.id);
     sim.setProject(pack);
     sim.reset();
@@ -809,6 +860,8 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       openTabs: pack.activePath ? [pack.activePath] : [],
       lintReport: lintActivePack(pack, projects, activeProjectId),
       selectedEntity: null,
+      ctf: null,
+      ctfModalOpen: false,
     });
     persistWorkspaces(projects, activeProjectId);
   },
@@ -1022,6 +1075,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   },
 
   importZip: async (file) => {
+    if (get().ctf) {
+      get().showToast("This challenge is read-only", "error");
+      return;
+    }
     try {
       const imported = await readProjectZip(file);
       const pack: Project = {
@@ -1158,15 +1215,37 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     scheduleLint(get);
     return { matches, files: changed };
   },
-  startChallenge: (id) => {
-    const challenge = getCtfChallenge(id);
-    if (!challenge) return false;
+  startChallenge: async (id) => {
+    const source = getCtfChallengeSource(id);
+    if (!source) return false;
+    let challenge: CtfChallenge;
+    try {
+      challenge = await fetchCtfChallenge(id);
+    } catch (error) {
+      get().showToast(
+        `Challenge files could not be loaded: ${(error as Error).message}`,
+        "error",
+      );
+      return false;
+    }
     const existing = get().projects.find(
       (project) => project.ctfChallengeId === challenge.id,
     );
-    const workspace = existing ?? ctfWorkspace(challenge);
-    const projects = existing ? get().projects : [...get().projects, workspace];
-    const project = activePackOf(workspace);
+    const pack = ctfPublicPack(challenge);
+    const workspace: WorkspaceProject = existing
+      ? {
+          ...existing,
+          packs: [pack],
+          activePackId: pack.id,
+          updatedAt: Date.now(),
+        }
+      : ctfWorkspace(challenge);
+    const projects = existing
+      ? get().projects.map((entry) =>
+          entry.id === workspace.id ? workspace : entry,
+        )
+      : [...get().projects, workspace];
+    const project = pack;
     const sim = new Simulator({ project: ctfServerProject(challenge) });
     sim.permissionLevel = 0;
     sim.contextProjects = [];

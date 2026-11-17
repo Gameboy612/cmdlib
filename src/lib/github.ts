@@ -525,3 +525,29 @@ async function runConcurrently<T>(
   });
   await Promise.all(workers);
 }
+
+export interface GithubRepositoryContent {
+  url: string;
+  files: Record<string, string>;
+}
+
+/**
+ * Fetch selected text files from a public GitHub repository.
+ * Paths are repository-relative and keep their original directory layout.
+ */
+export async function fetchGithubRepositoryFiles(
+  url: string,
+  include: (path: string) => boolean,
+): Promise<GithubRepositoryContent> {
+  const parsed = parseGithubUrl(url);
+  const ref = parsed.branch ?? (await resolveDefaultBranch(parsed));
+  const entries = await fetchRepositoryTree(parsed, ref);
+  const files: Record<string, string> = {};
+  const selected = entries.filter(
+    (entry) => entry.type === "blob" && include(entry.path),
+  );
+  await runConcurrently(selected, MAX_CONCURRENCY, async (entry) => {
+    files[entry.path] = await fetchRawFile(parsed, ref, entry.path);
+  });
+  return { url: sourceUrl(parsed, ref), files };
+}

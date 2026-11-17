@@ -16,6 +16,7 @@ const WORKBENCH = [
   ["World preview", "Inspect entities, positions, NBT, effects and inventories. Right-drag to rotate, scroll to zoom."],
   ["Console", "Tab completion, history and log-level filters for errors, warnings, chat, data, commands and system messages."],
   ["Timeline", "Play, pause, freeze, step, change tick rate and speed. Load tags, tick tags and scheduled functions are simulated."],
+  ["CTF mode", "Read-only challenge workspaces. Inspect only public files, run player commands, and submit a flag checked against .secret/flag.txt."],
   ["Search all", "Ctrl/Cmd + Shift + F searches every file with regex and case options, plus replace all. Ctrl/Cmd + P opens the file palette."],
   ["Creative items", "In creative mode, give yourself any item with a count and component list from the inventory or preview menu — no operator permission required."],
 ];
@@ -139,7 +140,7 @@ export default function FeaturesPage() {
             <span><b>Versions</b> 1.13 – 26.3</span>
             <span><b>Runtime commands</b> 28</span>
             <span><b>Predicates</b> 12 condition types</span>
-            <span><b>Tests</b> 178 passing</span>
+            <span><b>Tests</b> 179 passing</span>
             <span><b>Runtime</b> static · local-only</span>
           </div>
         </div>

@@ -177,7 +177,7 @@ export function ExplorerPanel() {
   };
 
   useEffect(() => {
-    if (!explorerCreate || explorerCreate.nonce === lastCreateNonce.current) return;
+    if (ctf || !explorerCreate || explorerCreate.nonce === lastCreateNonce.current) return;
     lastCreateNonce.current = explorerCreate.nonce;
     setDraft({
       mode: "create",
@@ -196,7 +196,7 @@ export function ExplorerPanel() {
               ? "new_predicate"
               : `${explorerCreate.folder ?? `data/${activeNamespace}/${version.functionFolder}`}/new_file.mcfunction`,
     });
-  }, [explorerCreate, activeNamespace, version.functionFolder]);
+  }, [explorerCreate, activeNamespace, version.functionFolder, ctf]);
 
   const draftFocusKey = draft
     ? draft.mode === "create"
