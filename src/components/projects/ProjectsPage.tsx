@@ -38,8 +38,8 @@ export function ProjectsPage() {
     hydrate();
   }, [hydrate]);
 
-  const open = (id: string) => {
-    openProject(id);
+  const open = async (id: string) => {
+    await openProject(id);
     router.push("/editor/");
   };
 
@@ -54,8 +54,8 @@ export function ProjectsPage() {
     router.push("/editor/");
   };
 
-  const addPackTo = (id: string) => {
-    openProject(id);
+  const addPackTo = async (id: string) => {
+    await openProject(id);
     addPack();
     router.push("/editor/");
   };
@@ -79,8 +79,8 @@ export function ProjectsPage() {
 
   const projectMenu = (event: React.MouseEvent, project: (typeof projects)[number]) => {
     openMenu(event, [
-      { label: "Open project", onSelect: () => open(project.id) },
-      { label: "Add pack", onSelect: () => addPackTo(project.id) },
+      { label: "Open project", onSelect: () => void open(project.id) },
+      { label: "Add pack", onSelect: () => void addPackTo(project.id) },
       {
         label: "Rename project…",
         onSelect: () => rename(project.id, project.name),
@@ -112,9 +112,10 @@ export function ProjectsPage() {
       {
         label: "Open pack",
         onSelect: () => {
-          openProject(project.id);
-          selectPack(pack.id);
-          router.push("/editor/");
+          void openProject(project.id).then(() => {
+            selectPack(pack.id);
+            router.push("/editor/");
+          });
         },
       },
       {
@@ -334,10 +335,10 @@ export function ProjectsPage() {
                   </span>
                 )}
                 <div className={styles.actions}>
-                  <button type="button" onClick={() => addPackTo(project.id)}>+ pack</button>
+                  <button type="button" onClick={() => void addPackTo(project.id)}>+ pack</button>
                   <button type="button" onClick={() => rename(project.id, project.name)}>rename</button>
                   <button type="button" className={styles.danger} onClick={() => remove(project.id, project.name)}>delete</button>
-                  <button type="button" className={styles.open} onClick={() => open(project.id)}>open →</button>
+                  <button type="button" className={styles.open} onClick={() => void open(project.id)}>open →</button>
                 </div>
               </div>
             </article>

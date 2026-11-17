@@ -94,7 +94,7 @@ interface WorkbenchState {
   createProject: (name?: string) => string;
   importGithubProject: (url: string) => Promise<string>;
   importProjectZip: (file: File) => Promise<string>;
-  openProject: (id: string) => void;
+  openProject: (id: string) => Promise<void>;
   deleteProject: (id: string) => void;
   renameProject: (id: string, name: string) => void;
   addPack: (name?: string) => string;
@@ -1032,11 +1032,11 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     return workspace.id;
   },
 
-  openProject: (id) => {
+  openProject: async (id) => {
     const workspace = get().projects.find((entry) => entry.id === id);
     if (!workspace) return;
     if (workspace.ctfChallengeId) {
-      get().startChallenge(workspace.ctfChallengeId);
+      await get().startChallenge(workspace.ctfChallengeId);
       return;
     }
     set({ activeProjectId: id, ctf: null, ctfModalOpen: false });
