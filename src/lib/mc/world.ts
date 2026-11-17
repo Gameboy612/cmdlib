@@ -691,8 +691,17 @@ export class World {
     enabled = true,
   ): void {
     const state = this.ensurePlayerState(target);
-    if (enabled) state.enabledTriggers.add(objective);
-    else state.enabledTriggers.delete(objective);
+    if (enabled) {
+      state.enabledTriggers.add(objective);
+      // A trigger objective is initialized to zero when it is first enabled;
+      // an existing score is kept.
+      const holder = this.runtimeKey(target);
+      if (this.getScore(holder, objective) === undefined) {
+        this.setScore(holder, objective, 0);
+      }
+    } else {
+      state.enabledTriggers.delete(objective);
+    }
   }
 
   /* ------------------------------- data ------------------------------- */

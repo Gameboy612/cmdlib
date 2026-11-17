@@ -723,3 +723,17 @@ describe("player permission level", () => {
     expect(sim.runCommand("say hello").ok).toBe(true);
   });
 });
+
+describe("trigger objective initialization", () => {
+  it("sets an unset trigger score to zero when enabled and keeps existing scores", () => {
+    const sim = new Simulator({ project: createDemoProject("26.3") });
+    sim.reset();
+    sim.runCommand("scoreboard objectives add quests trigger");
+    sim.runCommand("scoreboard players enable @s quests");
+    expect(sim.world.getScore("Dev", "quests")).toBe(0);
+
+    sim.runCommand("scoreboard players set @s quests 7");
+    sim.runCommand("scoreboard players enable @s quests");
+    expect(sim.world.getScore("Dev", "quests")).toBe(7);
+  });
+});

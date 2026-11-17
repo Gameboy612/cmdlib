@@ -256,7 +256,8 @@ describe("/scoreboard players enable and /trigger", () => {
     const sim = newSim();
     sim.runCommand("scoreboard players enable @s reward");
     expect(sim.runCommand("trigger reward").ok).toBe(true);
-    expect(sim.world.getScore("Dev", "reward")).toBe(0);
+    // Enabling initializes the score to 0, so the default trigger adds one.
+    expect(sim.world.getScore("Dev", "reward")).toBe(1);
 
     sim.runCommand("scoreboard players enable @s reward");
     sim.runCommand("trigger reward set 4");
